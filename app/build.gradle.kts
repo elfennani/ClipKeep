@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.room)
+    alias(libs.plugins.jetbrains.kotlin.serialization)
     id("com.google.devtools.ksp") version "2.3.10"
     id("com.google.dagger.hilt.android")
 }
@@ -59,6 +60,7 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 
     // Media Transformer
     implementation(libs.androidx.media3.transformer)
