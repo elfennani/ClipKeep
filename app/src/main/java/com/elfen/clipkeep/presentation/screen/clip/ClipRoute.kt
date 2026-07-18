@@ -1,10 +1,9 @@
-package com.elfen.clipkeep.presentation.screen.clipper
+package com.elfen.clipkeep.presentation.screen.clip
 
 import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
 
-
 @Serializable
-data class ClipperRoute(
-    val uri: String
+data class ClipRoute(
+    val id: Int
 ) : NavKey

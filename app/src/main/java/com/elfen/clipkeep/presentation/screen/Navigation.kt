@@ -16,6 +16,8 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
+import com.elfen.clipkeep.presentation.screen.clip.ClipRoute
+import com.elfen.clipkeep.presentation.screen.clip.ClipScreen
 import com.elfen.clipkeep.presentation.screen.clipper.ClipperRoute
 import com.elfen.clipkeep.presentation.screen.clipper.ClipperScreen
 import com.elfen.clipkeep.presentation.screen.home.HomeRoute
@@ -49,7 +51,7 @@ fun Navigation() {
     NavDisplay(
         entryDecorators = listOf(
             rememberSaveableStateHolderNavEntryDecorator(),
-            rememberViewModelStoreNavEntryDecorator()
+            rememberViewModelStoreNavEntryDecorator(),
         ),
         transitionSpec = transitionSpec,
         popTransitionSpec = transitionSpec,
@@ -65,6 +67,14 @@ fun Navigation() {
             }
             entry<ClipperRoute> {
                 ClipperScreen(
+                    route = it,
+                    onNavigate = backstack::add,
+                    onBack = backstack::removeLastOrNull
+                )
+            }
+            entry<ClipRoute> {
+                ClipScreen(
+                    route = it,
                     onNavigate = backstack::add,
                     onBack = backstack::removeLastOrNull
                 )
