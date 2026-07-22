@@ -93,6 +93,7 @@ dependencies {
     // Coil 3
     implementation("io.coil-kt.coil3:coil-compose:3.5.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.5.0")
+    implementation("io.coil-kt.coil3:coil-video:3.5.0")
 }
 
 room3 {

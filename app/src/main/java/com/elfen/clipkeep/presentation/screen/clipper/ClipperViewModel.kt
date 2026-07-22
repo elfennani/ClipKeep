@@ -17,6 +17,7 @@ import androidx.media3.transformer.Transformer
 import com.elfen.clipkeep.data.local.dao.ClipDao
 import com.elfen.clipkeep.data.local.model.ClipEntity
 import com.elfen.clipkeep.domain.model.EditingClipPart
+import com.elfen.clipkeep.domain.repository.EditRepository
 import com.elfen.clipkeep.utils.getFileName
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -25,8 +26,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -41,24 +47,32 @@ private const val TAG = "ClipperViewModel"
 @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
 @HiltViewModel(assistedFactory = ClipperViewModel.Factory::class)
 class ClipperViewModel @AssistedInject constructor(
-    @Assisted private val uri: Uri,
+    @Assisted private val editId: Long,
     @ApplicationContext private val context: Context,
-    private val clipDao: ClipDao
+    private val editRepository: EditRepository
 ) : ViewModel() {
+    private val edit = editRepository.getEditById(editId)
     private val _state = MutableStateFlow(ClipperUiState())
-    val state: StateFlow<ClipperUiState> = _state.asStateFlow()
+    val state: StateFlow<ClipperUiState> = combine(_state, edit) { state, edit ->
+        state.copy(
+            isLoading = false,
+            clip = edit
+        )
+    }
+        .stateIn(viewModelScope, SharingStarted.Lazily, ClipperUiState())
 
     init {
-        val exoPlayer = ExoPlayer.Builder(context).build();
-        val media = MediaItem.fromUri(uri);
-        exoPlayer.addMediaItem(media)
+        viewModelScope.launch {
+            val clip = state.first { it.clip != null }.clip!!
+            val exoPlayer = ExoPlayer.Builder(context).build();
+            val media = MediaItem.fromUri(clip.uri);
+            exoPlayer.addMediaItem(media)
 
-        _state.update {
-            it.copy(
-                isLoading = false,
-                exoPlayer = exoPlayer,
-                uri = uri
-            )
+            _state.update {
+                it.copy(
+                    exoPlayer = exoPlayer,
+                )
+            }
         }
     }
 
@@ -66,106 +80,39 @@ class ClipperViewModel @AssistedInject constructor(
     fun handleUiEvent(uiEvent: ClipperUiEvent) {
         when (uiEvent) {
             is ClipperUiEvent.AddClip -> {
-                _state.update { state ->
-                    state.copy(
-                        clips = state.clips + EditingClipPart(
-                            id = Random.nextInt(),
-                            name = "Clip",
-                            startMs = uiEvent.start,
-                            finishMs = uiEvent.start + 1_000,
-                            enabled = true,
-                        )
+                viewModelScope.launch {
+                    editRepository.addClipping(
+                        editId = editId,
+                        start = uiEvent.start,
+                        end = uiEvent.start + 1_000
                     )
                 }
             }
 
             is ClipperUiEvent.SetClipStartTime -> {
-                _state.update { state ->
-                    state.copy(
-                        clips = state.clips.map { clip ->
-                            if (clip.id == uiEvent.id)
-                                clip.copy(
-                                    startMs = uiEvent.time
-                                )
-                            else
-                                clip
-                        }
-                    )
+                viewModelScope.launch {
+                    editRepository.editClippingStart(uiEvent.id, uiEvent.time)
                 }
             }
 
             is ClipperUiEvent.SetClipEndTime -> {
-                _state.update { state ->
-                    state.copy(
-                        clips = state.clips.map { clip ->
-                            if (clip.id == uiEvent.id)
-                                clip.copy(
-                                    finishMs = uiEvent.time
-                                )
-                            else
-                                clip
-                        }
-                    )
+                viewModelScope.launch {
+                    editRepository.editClippingEnd(uiEvent.id, uiEvent.time)
                 }
             }
 
             ClipperUiEvent.Render -> {
                 _state.update { it.copy(isRendering = true) }
-                val clips = _state.value.clips.map {
-                    it to render(it)
-                }
-
                 viewModelScope.launch {
-                    clips.forEach { (clip, uri) ->
-                        clipDao.insertClip(
-                            ClipEntity(
-                                id = null,
-                                uri = uri.toString(),
-                                thumbnailUri = Uri.EMPTY.toString(),
-                                width = 1920,
-                                height = 1080,
-                                durationMs = clip.finishMs - clip.startMs,
-                                title = null,
-                                source = state.value.uri!!.toString(),
-                                createdAt = Clock.System.now().toEpochMilliseconds()
-                            )
-                        )
-                    }
-
-                    Log.d(TAG, "handleUiEvent: Clips Rendered!")
+                    editRepository.confirm(id = editId)
                     _state.update { it.copy(isRendering = false) }
                 }
             }
         }
     }
 
-    @UnstableApi
-    private fun render(clip: EditingClipPart): Uri {
-        Log.d("ClipperViewModel", "Starting");
-        val inputMediaItem =
-            MediaItem.Builder()
-                .setUri(uri)
-                .setClippingConfiguration(
-                    MediaItem.ClippingConfiguration.Builder()
-                        .setStartPositionMs(clip.startMs)
-                        .setEndPositionMs(clip.finishMs)
-                        .build()
-                )
-                .build()
-        val transformer =
-            Transformer.Builder(context)
-                .build();
-        val outputFile =
-            File(context.filesDir, context.getFileName(uri))
-
-        transformer.start(inputMediaItem, outputFile.absolutePath)
-        Log.d("ClipperViewModel", "Finished");
-
-        return outputFile.toUri()
-    }
-
     @AssistedFactory
     interface Factory {
-        fun create(uri: Uri): ClipperViewModel
+        fun create(editId: Long): ClipperViewModel
     }
 }

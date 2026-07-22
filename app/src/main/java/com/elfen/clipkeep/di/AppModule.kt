@@ -10,11 +10,13 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
     @Provides
+    @Singleton
     fun database(
         @ApplicationContext context: Context
     ): ClipDatabase {
@@ -24,5 +26,10 @@ object AppModule {
     }
 
     @Provides
+    @Singleton
     fun clipDao(db: ClipDatabase): ClipDao = db.clipDao()
+
+    @Provides
+    @Singleton
+    fun editDao(db: ClipDatabase) = db.editDao()
 }

@@ -6,12 +6,13 @@ import com.elfen.clipkeep.domain.model.EditingClipPart
 
 @Entity("editing_clip_part")
 data class EditingClipPartEntity(
-    @PrimaryKey
-    val id: Int,
-    val name: String,
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val name: String?,
     val startMs: Long,
     val finishMs: Long,
-    val enabled: Boolean
+    val enabled: Boolean,
+    val editId: Long
 )
 
 fun EditingClipPartEntity.asAppModel() = EditingClipPart(

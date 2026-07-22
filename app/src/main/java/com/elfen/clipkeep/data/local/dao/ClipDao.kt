@@ -16,4 +16,10 @@ interface ClipDao {
 
     @Query("SELECT * FROM clip WHERE id=:id")
     suspend fun queryClip(id: Long): ClipEntity?
+
+    @Query("DELETE FROM clip WHERE id=:id")
+    suspend fun deleteById(id: Long)
+
+    @Query("UPDATE clip SET title=:title WHERE id=:id")
+    suspend fun updateTitle(id: Long, title: String?)
 }

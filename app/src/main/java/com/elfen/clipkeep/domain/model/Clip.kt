@@ -15,7 +15,8 @@ data class Clip(
     val thumbnail: Uri,
     val uri: Uri,
     val duration: Long,
-    val createdAt: Instant
+    val createdAt: Instant,
+    val size: Long
 ) {
     companion object {
         val samples: List<Clip> = listOf(
@@ -28,6 +29,7 @@ data class Clip(
                 thumbnail = Uri.EMPTY,
                 uri = Uri.EMPTY,
                 duration = 10_000,
+                size = 1_000_000,
                 createdAt = Instant.fromEpochMilliseconds(
                     Clock.System.now().toEpochMilliseconds() - 10_000
                 )
@@ -41,6 +43,7 @@ data class Clip(
                 thumbnail = Uri.EMPTY,
                 uri = Uri.EMPTY,
                 duration = 7_500,
+                size = 1_000_000,
                 createdAt = Instant.fromEpochMilliseconds(
                     Clock.System.now().toEpochMilliseconds() - 97_929_000
                 )
@@ -54,6 +57,7 @@ data class Clip(
                 thumbnail = Uri.EMPTY,
                 uri = Uri.EMPTY,
                 duration = 129_800,
+                size = 1_000_000,
                 createdAt = Instant.fromEpochMilliseconds(
                     Clock.System.now().toEpochMilliseconds() - 48_960_000
                 )

@@ -32,6 +32,7 @@ import coil3.compose.AsyncImage
 import com.elfen.clipkeep.domain.model.Clip
 import com.elfen.clipkeep.presentation.theme.ClipKeepTheme
 import com.elfen.clipkeep.utils.msToText
+import com.elfen.clipkeep.utils.readableBytes
 import kotlinx.datetime.format
 import kotlinx.datetime.format.DateTimeComponents
 import kotlinx.datetime.format.MonthNames
@@ -96,7 +97,7 @@ fun ClipCard(modifier: Modifier = Modifier, clip: Clip) {
                 )
 
             Text(
-                clip.duration.msToText(),
+                "${clip.duration.msToText()} • ${clip.size.readableBytes}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center

@@ -1,9 +1,11 @@
 package com.elfen.clipkeep.presentation.screen.home
 
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -31,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -39,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavKey
 import com.elfen.clipkeep.R
 import com.elfen.clipkeep.domain.model.Clip
+import com.elfen.clipkeep.domain.model.EditingClip
 import com.elfen.clipkeep.presentation.component.ClipCard
 import com.elfen.clipkeep.presentation.screen.clip.ClipRoute
 import com.elfen.clipkeep.presentation.screen.clipper.ClipperRoute
@@ -53,11 +57,13 @@ fun HomeScreen(
     HomeScreen(
         state = state,
         onNavigateToClipper = {
-            onNavigate(ClipperRoute(it.toString()))
+            onNavigate(ClipperRoute(it))
         },
         onClickClip = {
             onNavigate(ClipRoute(it.id.toInt()))
-        }
+        },
+        onCreateEdit = viewModel::createEdit,
+        onDeleteClip = viewModel::deleteClip
     )
 }
 
@@ -65,12 +71,23 @@ fun HomeScreen(
 @Composable
 private fun HomeScreen(
     state: HomeUiState = HomeUiState(),
-    onNavigateToClipper: (Uri?) -> Unit = {},
-    onClickClip: (clip: Clip) -> Unit = {}
+    onNavigateToClipper: (id: Long) -> Unit = {},
+    onClickClip: (clip: Clip) -> Unit = {},
+    onCreateEdit: (uri: Uri, onCreated: (EditingClip) -> Unit) -> Unit = { _, _ -> },
+    onDeleteClip: (id: Long) -> Unit = {}
 ) {
+    val context = LocalContext.current
     val launcher =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            onNavigateToClipper(uri)
+            if (uri != null) {
+                val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+
+                context.contentResolver.takePersistableUriPermission(uri, takeFlags)
+
+                onCreateEdit(uri) {
+                    onNavigateToClipper(it.id)
+                }
+            }
         }
 
     Scaffold(
@@ -124,7 +141,10 @@ private fun HomeScreen(
                         modifier = Modifier
                             .fillMaxWidth(0.33f)
                             .clip(RoundedCornerShape(4.dp))
-                            .clickable { onClickClip(clip) },
+                            .combinedClickable(
+                                onClick = { onClickClip(clip) },
+                                onLongClick = { onDeleteClip(clip.id) }
+                            ),
                         clip = clip
                     )
                 }

@@ -47,7 +47,7 @@ fun ClipperScreen(
 ) {
     val viewModel = hiltViewModel<ClipperViewModel, ClipperViewModel.Factory>(
         creationCallback = {
-            it.create(route.uri.toUri())
+            it.create(route.id)
         }
     )
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -88,7 +88,7 @@ private fun ClipperScreen(
             )
         },
         floatingActionButton = {
-            if (state.uri != null && state.exoPlayer != null) {
+            if (state.exoPlayer != null) {
                 FloatingActionButton(onClick = {
                     onUiEvent(ClipperUiEvent.AddClip(state.exoPlayer.currentPosition))
                 }) {
@@ -106,7 +106,7 @@ private fun ClipperScreen(
             ) {
                 CircularProgressIndicator()
             }
-        } else if (state.uri != null && state.exoPlayer != null) {
+        } else if (state.clip != null && state.exoPlayer != null) {
             LazyColumn(
                 modifier = Modifier.padding(innerPadding),
                 contentPadding = PaddingValues(bottom = 128.dp),
@@ -122,7 +122,7 @@ private fun ClipperScreen(
                     )
                 }
 
-                items(state.clips) { clipPart ->
+                items(state.clip.parts) { clipPart ->
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()

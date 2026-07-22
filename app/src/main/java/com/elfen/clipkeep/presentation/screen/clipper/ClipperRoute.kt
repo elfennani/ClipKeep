@@ -6,5 +6,5 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ClipperRoute(
-    val uri: String
+    val id: Long
 ) : NavKey
