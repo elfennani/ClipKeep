@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -132,11 +133,14 @@ private fun HomeScreen(
             LazyVerticalStaggeredGrid(
                 modifier = Modifier.padding(innerPadding),
                 columns = StaggeredGridCells.Fixed(2),
-                verticalItemSpacing = 16.dp,
+                verticalItemSpacing = 8.dp,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(16.dp)
+                contentPadding = PaddingValues(8.dp)
             ) {
-                items(state.clips) { clip ->
+                items(
+                    items = state.clips,
+                    span = { clip -> if ((clip.width.toFloat() / clip.height) >= 1f) StaggeredGridItemSpan.FullLine else StaggeredGridItemSpan.SingleLane }
+                ) { clip ->
                     ClipCard(
                         modifier = Modifier
                             .fillMaxWidth(0.33f)
