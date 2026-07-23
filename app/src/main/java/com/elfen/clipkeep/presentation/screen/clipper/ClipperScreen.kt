@@ -1,14 +1,20 @@
 package com.elfen.clipkeep.presentation.screen.clipper
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,11 +22,13 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -28,12 +36,16 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -41,11 +53,20 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.ui.compose.material3.Player
 import androidx.navigation3.runtime.NavKey
+import coil3.ImageLoader
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.video.VideoFrameDecoder
+import coil3.video.videoFrameMillis
 import com.elfen.clipkeep.R
+import com.elfen.clipkeep.domain.model.EditingClip
 import com.elfen.clipkeep.presentation.component.EditPartCard
+import com.elfen.clipkeep.presentation.state.rememberPlayerState
 import com.elfen.clipkeep.presentation.theme.ClipKeepTheme
 import com.elfen.clipkeep.utils.AbsoluteSmoothCornerShape
+import com.elfen.clipkeep.utils.msToText
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 
 @Composable
 fun ClipperScreen(
@@ -77,6 +98,9 @@ private fun ClipperScreen(
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var titleSheetPartId by remember { mutableStateOf<Long?>(null) }
+    val playerState = rememberPlayerState(state.exoPlayer)
+    val context = LocalContext.current
+    var temp by remember { mutableStateOf<Float?>(null) }
 
     if (titleSheetPartId != null) {
         ModalBottomSheet(
@@ -150,50 +174,153 @@ private fun ClipperScreen(
                 }
             )
         },
-        floatingActionButton = {
-            if (state.exoPlayer != null) {
-                FloatingActionButton(onClick = {
-                    onUiEvent(ClipperUiEvent.AddClip(state.exoPlayer.currentPosition))
-                }) {
-                    Icon(painterResource(R.drawable.sharp_bookmark_add_24), null)
-                }
-            }
-        }
     ) { innerPadding ->
         if (state.isLoading) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .padding(16.dp)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 CircularProgressIndicator()
             }
-        } else if (state.clip != null && state.exoPlayer != null) {
-            LazyColumn(
-                modifier = Modifier.padding(innerPadding),
-                contentPadding = PaddingValues(bottom = 128.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+        } else if (state.clip != null) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
             ) {
-                stickyHeader {
-                    Player(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(16f / 9)
-                            .background(Color.Black),
-                        player = state.exoPlayer
-                    )
+                LazyColumn(
+                    modifier = Modifier.padding(innerPadding),
+                    contentPadding = PaddingValues(bottom = 128.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    stickyHeader {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .background(Color.Black)
+                        ) {
+                            Player(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.Black)
+                                    .aspectRatio(16f / 9),
+                                player = state.exoPlayer,
+                                showControls = false,
+                                shutter = {}
+                            )
+                        }
+                    }
+
+                    items(state.clip.parts) { clipPart ->
+                        EditPartCard(
+                            modifier = Modifier
+                                .animateItem()
+                                .fillMaxWidth(),
+                            part = clipPart,
+                            onClick = {},
+                            onToggle = { onUiEvent(ClipperUiEvent.TogglePart(clipPart.id)) },
+                            onEditTitle = { titleSheetPartId = clipPart.id }
+                        )
+                    }
+
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .animateItem()
+                                .fillMaxWidth()
+                                .clickable {
+                                    if (state.exoPlayer != null)
+                                        onUiEvent(ClipperUiEvent.AddClip(state.exoPlayer.currentPosition))
+                                }
+                                .padding(vertical = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(
+                                8.dp,
+                                Alignment.CenterHorizontally
+                            ),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(painterResource(R.drawable.sharp_bookmark_add_24), null)
+                            Text("Add new clip", style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
                 }
 
-                items(state.clip.parts) { clipPart ->
-                    EditPartCard(
-                        modifier = Modifier
-                            .fillMaxWidth(),
-                        part = clipPart,
-                        onClick = {},
-                        onToggle = { onUiEvent(ClipperUiEvent.TogglePart(clipPart.id)) },
-                        onEditTitle = { titleSheetPartId = clipPart.id }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                        .padding(WindowInsets.navigationBars.asPaddingValues())
+                ) {
+                    HorizontalDivider(
+                        Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.outlineVariant
                     )
+                    Column(modifier = Modifier.padding(8.dp)) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = { playerState.togglePlayback() }) {
+                                Icon(
+                                    painterResource(if (playerState.isPlaying) R.drawable.sharp_pause_24 else R.drawable.sharp_play_arrow_24),
+                                    null
+                                )
+                            }
+
+                            Text(
+                                playerState.currentPosition.msToText(
+                                    (playerState.duration ?: 0) >= 1_000 * 60 * 60
+                                ),
+                                style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
+                            )
+
+                            if (playerState.duration != null)
+                                Text(
+                                    "/ ${playerState.duration!!.msToText()}",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontFeatureSettings = "tnum"
+                                    )
+                                )
+
+                            Spacer(Modifier.weight(1f))
+                            IconButton(onClick = { playerState.seekBy(-10_000) }) {
+                                Icon(painterResource(R.drawable.sharp_replay_10_24), null)
+                            }
+                            IconButton(onClick = { playerState.seekBy(10_000) }) {
+                                Icon(painterResource(R.drawable.sharp_forward_10_24), null)
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        ) {
+                            var lastSeek by remember { mutableLongStateOf(0) }
+
+                            Slider(
+                                value = temp ?: playerState.currentPosition.toFloat(),
+                                onValueChange = {
+                                    temp = it
+                                    state.exoPlayer?.pause()
+
+                                    if (Clock.System.now()
+                                            .toEpochMilliseconds() - lastSeek > 200
+                                    ) {
+                                        state.exoPlayer?.seekTo(it.toLong())
+                                        lastSeek = Clock.System.now().toEpochMilliseconds()
+                                    }
+                                },
+                                onValueChangeFinished = {
+                                    state.exoPlayer?.seekTo(temp!!.toLong())
+                                    state.exoPlayer?.play()
+                                    temp = null
+                                },
+                                valueRange = 0f..(playerState.duration?.toFloat() ?: 0f)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -204,6 +331,13 @@ private fun ClipperScreen(
 @Composable
 private fun ClipperScreenPrev() {
     ClipKeepTheme() {
-        ClipperScreen()
+        ClipperScreen(
+            state = ClipperUiState(
+                isLoading = false,
+                exoPlayer = null,
+                isRendering = false,
+                clip = EditingClip.samples.first()
+            )
+        )
     }
 }

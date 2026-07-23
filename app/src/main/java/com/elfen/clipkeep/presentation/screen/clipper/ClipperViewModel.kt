@@ -2,12 +2,16 @@ package com.elfen.clipkeep.presentation.screen.clipper
 
 import android.content.Context
 import androidx.annotation.OptIn
+import androidx.compose.animation.core.RepeatMode
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.Player.REPEAT_MODE_ONE
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import com.elfen.clipkeep.domain.repository.EditRepository
+import com.elfen.clipkeep.presentation.state.PlayerState
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -49,6 +53,7 @@ class ClipperViewModel @AssistedInject constructor(
             exoPlayer.playWhenReady = true
             exoPlayer.addMediaItem(media)
             exoPlayer.prepare()
+            exoPlayer.repeatMode = REPEAT_MODE_ONE
 
             _state.update {
                 it.copy(

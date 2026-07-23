@@ -1,6 +1,6 @@
 package com.elfen.clipkeep.utils
 
-fun Long.msToText(): String {
+fun Long.msToText(forceHours: Boolean = false): String {
     val totalSeconds = this / 1_000
     val hours = totalSeconds / 3_600
     val minutes = (totalSeconds % 3_600) / 60
@@ -10,7 +10,7 @@ fun Long.msToText(): String {
     val minString = minutes.toString().padStart(2, '0')
     val secString = seconds.toString().padStart(2, '0')
 
-    return if (hours > 0) {
+    return if (hours > 0 || forceHours) {
         "$hourString:$minString:$secString"
     } else {
         "$minString:$secString"
