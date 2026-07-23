@@ -1,46 +1,26 @@
 package com.elfen.clipkeep.presentation.screen.clipper
 
-import android.annotation.SuppressLint
 import android.content.Context
-import android.net.Uri
-import android.util.Log
-import android.widget.Toast
 import androidx.annotation.OptIn
-import androidx.core.net.toUri
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.transformer.Transformer
-import com.elfen.clipkeep.data.local.dao.ClipDao
-import com.elfen.clipkeep.data.local.model.ClipEntity
-import com.elfen.clipkeep.domain.model.EditingClipPart
 import com.elfen.clipkeep.domain.repository.EditRepository
-import com.elfen.clipkeep.utils.getFileName
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.Dispatcher
-import java.io.File
-import javax.inject.Inject
-import kotlin.random.Random
-import kotlin.time.Clock
 
 private const val TAG = "ClipperViewModel"
 
@@ -79,27 +59,27 @@ class ClipperViewModel @AssistedInject constructor(
     }
 
     @OptIn(UnstableApi::class)
-    fun handleUiEvent(uiEvent: ClipperUiEvent) {
-        when (uiEvent) {
+    fun handleUiEvent(event: ClipperUiEvent) {
+        when (event) {
             is ClipperUiEvent.AddClip -> {
                 viewModelScope.launch {
                     editRepository.addClipping(
                         editId = editId,
-                        start = uiEvent.start,
-                        end = uiEvent.start + 1_000
+                        start = event.start,
+                        end = event.start + 1_000
                     )
                 }
             }
 
             is ClipperUiEvent.SetClipStartTime -> {
                 viewModelScope.launch {
-                    editRepository.editClippingStart(uiEvent.id, uiEvent.time)
+                    editRepository.editClippingStart(event.id, event.time)
                 }
             }
 
             is ClipperUiEvent.SetClipEndTime -> {
                 viewModelScope.launch {
-                    editRepository.editClippingEnd(uiEvent.id, uiEvent.time)
+                    editRepository.editClippingEnd(event.id, event.time)
                 }
             }
 
@@ -108,6 +88,18 @@ class ClipperViewModel @AssistedInject constructor(
                 viewModelScope.launch {
                     editRepository.confirm(id = editId)
                     _state.update { it.copy(isRendering = false) }
+                }
+            }
+
+            is ClipperUiEvent.TogglePart -> {
+                viewModelScope.launch {
+                    editRepository.toggleClipping(event.id)
+                }
+            }
+
+            is ClipperUiEvent.UpdatePartName -> {
+                viewModelScope.launch {
+                    editRepository.renameClipping(event.id, event.name)
                 }
             }
         }
