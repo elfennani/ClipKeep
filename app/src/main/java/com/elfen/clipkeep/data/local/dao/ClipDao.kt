@@ -11,7 +11,7 @@ interface ClipDao {
     @Insert
     suspend fun insertClip(clip: ClipEntity): Long
 
-    @Query("SELECT * FROM clip")
+    @Query("SELECT * FROM clip ORDER BY id DESC")
     fun queryClipsFlow(): Flow<List<ClipEntity>>
 
     @Query("SELECT * FROM clip WHERE id=:id")

@@ -66,7 +66,9 @@ class ClipperViewModel @AssistedInject constructor(
             val clip = state.first { it.clip != null }.clip!!
             val exoPlayer = ExoPlayer.Builder(context).build();
             val media = MediaItem.fromUri(clip.uri);
+            exoPlayer.playWhenReady = true
             exoPlayer.addMediaItem(media)
+            exoPlayer.prepare()
 
             _state.update {
                 it.copy(

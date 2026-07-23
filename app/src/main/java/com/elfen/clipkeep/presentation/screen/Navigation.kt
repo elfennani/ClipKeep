@@ -22,6 +22,8 @@ import com.elfen.clipkeep.presentation.screen.clipper.ClipperRoute
 import com.elfen.clipkeep.presentation.screen.clipper.ClipperScreen
 import com.elfen.clipkeep.presentation.screen.home.HomeRoute
 import com.elfen.clipkeep.presentation.screen.home.HomeScreen
+import com.elfen.clipkeep.presentation.screen.scroller.ScrollerRoute
+import com.elfen.clipkeep.presentation.screen.scroller.ScrollerScreen
 
 @Composable
 fun Navigation() {
@@ -76,6 +78,12 @@ fun Navigation() {
                 ClipScreen(
                     route = it,
                     onNavigate = backstack::add,
+                    onBack = backstack::removeLastOrNull
+                )
+            }
+            entry<ScrollerRoute> {
+                ScrollerScreen(
+                    route = it,
                     onBack = backstack::removeLastOrNull
                 )
             }

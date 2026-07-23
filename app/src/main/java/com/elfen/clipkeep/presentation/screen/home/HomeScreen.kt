@@ -47,7 +47,9 @@ import com.elfen.clipkeep.domain.model.EditingClip
 import com.elfen.clipkeep.presentation.component.ClipCard
 import com.elfen.clipkeep.presentation.screen.clip.ClipRoute
 import com.elfen.clipkeep.presentation.screen.clipper.ClipperRoute
+import com.elfen.clipkeep.presentation.screen.scroller.ScrollerRoute
 import com.elfen.clipkeep.presentation.theme.ClipKeepTheme
+import com.elfen.clipkeep.utils.AbsoluteSmoothCornerShape
 
 @Composable
 fun HomeScreen(
@@ -61,7 +63,7 @@ fun HomeScreen(
             onNavigate(ClipperRoute(it))
         },
         onClickClip = {
-            onNavigate(ClipRoute(it.id.toInt()))
+            onNavigate(ScrollerRoute(it.id))
         },
         onCreateEdit = viewModel::createEdit,
         onDeleteClip = viewModel::deleteClip
@@ -92,13 +94,6 @@ private fun HomeScreen(
         }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text("Home")
-                }
-            )
-        },
         floatingActionButton = {
             ExtendedFloatingActionButton(onClick = {
                 launcher.launch(arrayOf("video/*"))
@@ -143,12 +138,15 @@ private fun HomeScreen(
                 ) { clip ->
                     ClipCard(
                         modifier = Modifier
-                            .fillMaxWidth(0.33f)
-                            .clip(RoundedCornerShape(4.dp))
-                            .combinedClickable(
-                                onClick = { onClickClip(clip) },
-                                onLongClick = { onDeleteClip(clip.id) }
-                            ),
+                            .clip(
+                                AbsoluteSmoothCornerShape(
+                                    cornerRadiusTL = 32.dp,
+                                    cornerRadiusBL = 32.dp,
+                                    cornerRadiusBR = 32.dp,
+                                    cornerRadiusTR = 32.dp
+                                )
+                            )
+                            .clickable { onClickClip(clip) },
                         clip = clip
                     )
                 }
