@@ -60,7 +60,11 @@ import coil3.video.VideoFrameDecoder
 import coil3.video.videoFrameMillis
 import com.elfen.clipkeep.R
 import com.elfen.clipkeep.domain.model.EditingClip
+import com.elfen.clipkeep.domain.model.EditingClipPart
 import com.elfen.clipkeep.presentation.component.EditPartCard
+import com.elfen.clipkeep.presentation.component.PlayerExternalControls
+import com.elfen.clipkeep.presentation.screen.edit_part.EditPartRoute
+import com.elfen.clipkeep.presentation.state.PlayerState
 import com.elfen.clipkeep.presentation.state.rememberPlayerState
 import com.elfen.clipkeep.presentation.theme.ClipKeepTheme
 import com.elfen.clipkeep.utils.AbsoluteSmoothCornerShape
@@ -84,6 +88,9 @@ fun ClipperScreen(
     ClipperScreen(
         state = state,
         onUiEvent = viewModel::handleUiEvent,
+        onClickPart = {
+            onNavigate(EditPartRoute(route.id, it.id))
+        },
         onNavigateBack = onBack
     )
 }
@@ -93,13 +100,13 @@ fun ClipperScreen(
 private fun ClipperScreen(
     state: ClipperUiState = ClipperUiState(),
     onNavigateBack: () -> Unit = {},
+    onClickPart: (part: EditingClipPart) -> Unit = {},
     onUiEvent: (ClipperUiEvent) -> Unit = {}
 ) {
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var titleSheetPartId by remember { mutableStateOf<Long?>(null) }
     val playerState = rememberPlayerState(state.exoPlayer)
-    val context = LocalContext.current
     var temp by remember { mutableStateOf<Float?>(null) }
 
     if (titleSheetPartId != null) {
@@ -219,7 +226,9 @@ private fun ClipperScreen(
                                 .animateItem()
                                 .fillMaxWidth(),
                             part = clipPart,
-                            onClick = {},
+                            onClick = {
+                                onClickPart(clipPart)
+                            },
                             onToggle = { onUiEvent(ClipperUiEvent.TogglePart(clipPart.id)) },
                             onEditTitle = { titleSheetPartId = clipPart.id }
                         )
@@ -259,52 +268,23 @@ private fun ClipperScreen(
                         color = MaterialTheme.colorScheme.outlineVariant
                     )
                     Column(modifier = Modifier.padding(8.dp)) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(onClick = { playerState.togglePlayback() }) {
-                                Icon(
-                                    painterResource(if (playerState.isPlaying) R.drawable.sharp_pause_24 else R.drawable.sharp_play_arrow_24),
-                                    null
-                                )
-                            }
-
-                            Text(
-                                playerState.currentPosition.msToText(
-                                    (playerState.duration ?: 0) >= 1_000 * 60 * 60
-                                ),
-                                style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
-                            )
-
-                            if (playerState.duration != null)
-                                Text(
-                                    "/ ${playerState.duration!!.msToText()}",
-                                    style = MaterialTheme.typography.labelLarge.copy(
-                                        fontFeatureSettings = "tnum"
-                                    )
-                                )
-
-                            Spacer(Modifier.weight(1f))
-                            IconButton(onClick = { playerState.seekBy(-10_000) }) {
-                                Icon(painterResource(R.drawable.sharp_replay_10_24), null)
-                            }
-                            IconButton(onClick = { playerState.seekBy(10_000) }) {
-                                Icon(painterResource(R.drawable.sharp_forward_10_24), null)
-                            }
-                        }
+                        PlayerExternalControls(playerState = playerState)
 
                         Box(
                             modifier = Modifier.padding(horizontal = 8.dp)
                         ) {
                             var lastSeek by remember { mutableLongStateOf(0) }
+                            var previousPlaybackState by remember { mutableStateOf<Boolean?>(null) }
 
                             Slider(
                                 value = temp ?: playerState.currentPosition.toFloat(),
                                 onValueChange = {
                                     temp = it
-                                    state.exoPlayer?.pause()
 
+                                    if (previousPlaybackState == null)
+                                        previousPlaybackState = state.exoPlayer?.isPlaying
+
+                                    state.exoPlayer?.pause()
                                     if (Clock.System.now()
                                             .toEpochMilliseconds() - lastSeek > 200
                                     ) {
@@ -314,7 +294,12 @@ private fun ClipperScreen(
                                 },
                                 onValueChangeFinished = {
                                     state.exoPlayer?.seekTo(temp!!.toLong())
-                                    state.exoPlayer?.play()
+                                    if (previousPlaybackState == true)
+                                        state.exoPlayer?.play()
+                                    else if (previousPlaybackState == false) {
+                                        state.exoPlayer?.pause()
+                                    }
+                                    previousPlaybackState = null
                                     temp = null
                                 },
                                 valueRange = 0f..(playerState.duration?.toFloat() ?: 0f)
@@ -326,6 +311,7 @@ private fun ClipperScreen(
         }
     }
 }
+
 
 @Preview
 @Composable

@@ -20,6 +20,8 @@ import com.elfen.clipkeep.presentation.screen.clip.ClipRoute
 import com.elfen.clipkeep.presentation.screen.clip.ClipScreen
 import com.elfen.clipkeep.presentation.screen.clipper.ClipperRoute
 import com.elfen.clipkeep.presentation.screen.clipper.ClipperScreen
+import com.elfen.clipkeep.presentation.screen.edit_part.EditPartRoute
+import com.elfen.clipkeep.presentation.screen.edit_part.EditPartScreen
 import com.elfen.clipkeep.presentation.screen.home.HomeRoute
 import com.elfen.clipkeep.presentation.screen.home.HomeScreen
 import com.elfen.clipkeep.presentation.screen.scroller.ScrollerRoute
@@ -83,6 +85,13 @@ fun Navigation() {
             }
             entry<ScrollerRoute> {
                 ScrollerScreen(
+                    route = it,
+                    onBack = backstack::removeLastOrNull
+                )
+            }
+
+            entry<EditPartRoute> {
+                EditPartScreen(
                     route = it,
                     onBack = backstack::removeLastOrNull
                 )

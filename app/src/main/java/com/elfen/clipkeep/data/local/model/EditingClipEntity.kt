@@ -32,4 +32,9 @@ fun EditingClipEntity.asAppModel(parts: List<EditingClipPart>) = EditingClip(
     fileName = fileName,
     uri = uri.toUri(),
     parts = parts,
+    size = size,
+    duration = duration,
+    width = width,
+    height = height,
+    thumbnailUri = thumbnailUri.toUri()
 )

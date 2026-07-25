@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.math.min
 
 private const val TAG = "ClipperViewModel"
 
@@ -71,7 +72,7 @@ class ClipperViewModel @AssistedInject constructor(
                     editRepository.addClipping(
                         editId = editId,
                         start = event.start,
-                        end = event.start + 1_000
+                        end = min(event.start + 10_000, state.value.clip!!.duration)
                     )
                 }
             }
@@ -108,6 +109,11 @@ class ClipperViewModel @AssistedInject constructor(
                 }
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        state.value.exoPlayer?.release()
     }
 
     @AssistedFactory
