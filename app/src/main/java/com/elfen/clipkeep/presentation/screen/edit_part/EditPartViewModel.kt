@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player.REPEAT_MODE_ONE
 import androidx.media3.exoplayer.ExoPlayer
+import com.elfen.clipkeep.domain.model.Crop
 import com.elfen.clipkeep.domain.repository.EditRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -15,10 +16,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -53,14 +52,14 @@ class EditPartViewModel @AssistedInject constructor(
                     .setEndPositionMs(state.value.endMs)
                     .build()
             ).build();
-            exoPlayer.playWhenReady = true
             exoPlayer.addMediaItem(media)
             exoPlayer.prepare()
             exoPlayer.repeatMode = REPEAT_MODE_ONE
 
-            _state.update {
-                it.copy(
+            _state.update { state ->
+                state.copy(
                     exoPlayer = exoPlayer,
+                    crop = clip.parts.first { it.id == route.partId }.crop
                 )
             }
         }
@@ -101,16 +100,26 @@ class EditPartViewModel @AssistedInject constructor(
         exoPlayer.play()
     }
 
+    fun updateCrop(crop: Crop) {
+        _state.update { state ->
+            state.copy(
+                crop = crop
+            )
+        }
+
+        Log.d("EditPartScreen", "Finilized to ${state.value.crop}")
+    }
+
     fun confirm(onDismiss: () -> Unit = {}) {
         viewModelScope.launch {
             editRepository.editClippingStart(route.partId, state.value.startMs)
             editRepository.editClippingEnd(route.partId, state.value.endMs)
+            editRepository.setClippingCrop(route.partId, state.value.crop)
             onDismiss()
         }
     }
 
     override fun onCleared() {
-        super.onCleared()
         state.value.exoPlayer?.release()
     }
 

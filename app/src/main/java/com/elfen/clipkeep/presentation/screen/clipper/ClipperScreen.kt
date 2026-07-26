@@ -51,6 +51,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.ui.compose.SURFACE_TYPE_TEXTURE_VIEW
 import androidx.media3.ui.compose.material3.Player
 import androidx.navigation3.runtime.NavKey
 import coil3.ImageLoader
@@ -215,7 +216,8 @@ private fun ClipperScreen(
                                     .aspectRatio(16f / 9),
                                 player = state.exoPlayer,
                                 showControls = false,
-                                shutter = {}
+                                shutter = {},
+                                surfaceType = SURFACE_TYPE_TEXTURE_VIEW
                             )
                         }
                     }

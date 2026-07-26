@@ -10,8 +10,11 @@ import android.util.Log
 import androidx.core.net.toFile
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.transformer.Composition
+import androidx.media3.transformer.EditedMediaItem
+import androidx.media3.transformer.Effects
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.Transformer
@@ -23,22 +26,22 @@ import com.elfen.clipkeep.data.local.model.EditingClipPartEntity
 import com.elfen.clipkeep.data.local.model.asAppModel
 import com.elfen.clipkeep.data.local.relations.asAppModel
 import com.elfen.clipkeep.domain.model.AppError
+import com.elfen.clipkeep.domain.model.Crop
 import com.elfen.clipkeep.domain.model.EditingClip
 import com.elfen.clipkeep.domain.model.EditingClipPart
 import com.elfen.clipkeep.domain.model.VideoError
+import com.elfen.clipkeep.domain.model.toMedia3Crop
 import com.elfen.clipkeep.domain.repository.EditRepository
 import com.elfen.clipkeep.utils.getFileName
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.suspendCancellableCoroutine
-import okhttp3.internal.wait
 import java.io.File
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.text.toInt
-import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -183,13 +186,21 @@ class EditRepositoryImpl @Inject constructor(
         start: Long,
         end: Long
     ): EditingClipPart {
+        val edit = editDao.queryEditById(editId)!!.asAppModel(emptyList())
+
         return editDao.insertAndQueryPart(
             EditingClipPartEntity(
                 name = null,
                 startMs = start,
                 finishMs = end,
                 enabled = true,
-                editId = editId
+                editId = editId,
+                crop = Crop(
+                    x = 0f,
+                    y = 0f,
+                    width = edit.width.toFloat(),
+                    height = edit.height.toFloat(),
+                )
             )
         ).asAppModel()
     }
@@ -225,6 +236,17 @@ class EditRepositoryImpl @Inject constructor(
         )
     }
 
+    override suspend fun setClippingCrop(
+        id: Long,
+        crop: Crop
+    ) {
+        val clipping = editDao.queryPartById(id)
+
+        editDao.updatePart(
+            clipping.copy(crop = crop)
+        )
+    }
+
     override fun getEditById(id: Long): Flow<EditingClip> {
         return editDao.queryEditByIdFlow(id).map { item -> item.asAppModel() }
     }
@@ -239,7 +261,7 @@ class EditRepositoryImpl @Inject constructor(
         val clip = editDao.queryEditWithPartsById(id)?.asAppModel() ?: throw AppError.NotFound
 
         clip.parts.forEach { part ->
-            val uri = render(clip.uri, part)
+            val uri = render(clip.uri, clip, part)
             val metadata = uri.getMediaMetadata(isContentUri = false)
             val size = uri.toFile().length()
 
@@ -260,7 +282,7 @@ class EditRepositoryImpl @Inject constructor(
 
     @OptIn(ExperimentalUuidApi::class)
     @UnstableApi
-    private suspend fun render(uri: Uri, clip: EditingClipPart): Uri =
+    private suspend fun render(uri: Uri, edit: EditingClip, clip: EditingClipPart): Uri =
         suspendCancellableCoroutine { continuation ->
             Log.d("ClipperViewModel", "Starting");
             val inputMediaItem =
@@ -273,8 +295,19 @@ class EditRepositoryImpl @Inject constructor(
                             .build()
                     )
                     .build()
+            val editedMediaItem = EditedMediaItem.Builder(inputMediaItem)
+                .setEffects(
+                    Effects(
+                        listOf(),
+                        listOf(
+                            clip.crop.toMedia3Crop(edit.width, edit.height)
+                        )
+                    )
+                )
+                .build()
             val transformer =
                 Transformer.Builder(context)
+                    .setVideoMimeType(MimeTypes.VIDEO_H265)
                     .build();
             val outputFile =
                 File(
@@ -300,7 +333,7 @@ class EditRepositoryImpl @Inject constructor(
                     }
                 }
             )
-            transformer.start(inputMediaItem, outputFile.absolutePath)
+            transformer.start(editedMediaItem, outputFile.absolutePath)
 
             continuation.invokeOnCancellation { transformer.cancel() }
         }

@@ -14,7 +14,7 @@ import com.elfen.clipkeep.data.local.model.EditingClipPartEntity
         EditingClipEntity::class,
         EditingClipPartEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
     autoMigrations = [],
 )

@@ -1,6 +1,7 @@
 package com.elfen.clipkeep.domain.repository
 
 import android.net.Uri
+import com.elfen.clipkeep.domain.model.Crop
 import com.elfen.clipkeep.domain.model.EditingClip
 import com.elfen.clipkeep.domain.model.EditingClipPart
 import kotlinx.coroutines.flow.Flow
@@ -15,6 +16,7 @@ interface EditRepository {
     suspend fun toggleClipping(id: Long)
     suspend fun editClippingStart(id: Long, start: Long)
     suspend fun editClippingEnd(id: Long, end: Long)
+    suspend fun setClippingCrop(id: Long, crop: Crop)
 
     fun getEditById(id: Long): Flow<EditingClip>
     fun getEdits(): Flow<List<EditingClip>>

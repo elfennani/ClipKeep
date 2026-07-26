@@ -29,6 +29,7 @@ import com.elfen.clipkeep.domain.model.EditingClipPart
 import com.elfen.clipkeep.presentation.theme.ClipKeepTheme
 import com.elfen.clipkeep.utils.msToText
 import java.util.Locale
+import kotlin.math.floor
 
 @Composable
 fun EditPartCard(
@@ -100,7 +101,7 @@ fun EditPartCard(
                     )
                     Text(
                         part.startMs.msToText(),
-                        style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
                     )
                 }
 
@@ -115,10 +116,24 @@ fun EditPartCard(
                     )
                     Text(
                         part.finishMs.msToText(),
-                        style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
                     )
                 }
 
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        "Res".uppercase(Locale.ROOT),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                    Text(
+                        "${floor(part.crop.width).toInt()}x${floor(part.crop.height).toInt()}",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+                    )
+                }
             }
         }
         Icon(
