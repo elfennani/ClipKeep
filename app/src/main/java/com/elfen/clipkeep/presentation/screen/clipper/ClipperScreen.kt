@@ -35,6 +35,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -109,6 +110,11 @@ private fun ClipperScreen(
     var titleSheetPartId by remember { mutableStateOf<Long?>(null) }
     val playerState = rememberPlayerState(state.exoPlayer)
     var temp by remember { mutableStateOf<Float?>(null) }
+
+    LaunchedEffect(state.isRendering) {
+        if (state.isRendering)
+            onNavigateBack()
+    }
 
     if (titleSheetPartId != null) {
         ModalBottomSheet(

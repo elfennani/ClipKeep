@@ -2,6 +2,7 @@ package com.elfen.clipkeep.data.repository
 
 import android.content.ContentResolver
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
@@ -28,6 +29,7 @@ import com.elfen.clipkeep.data.local.model.EditingClipEntity
 import com.elfen.clipkeep.data.local.model.EditingClipPartEntity
 import com.elfen.clipkeep.data.local.model.asAppModel
 import com.elfen.clipkeep.data.local.relations.asAppModel
+import com.elfen.clipkeep.data.services.RenderService
 import com.elfen.clipkeep.domain.model.AppError
 import com.elfen.clipkeep.domain.model.Crop
 import com.elfen.clipkeep.domain.model.EditingClip
@@ -36,6 +38,7 @@ import com.elfen.clipkeep.domain.model.VideoError
 import com.elfen.clipkeep.domain.model.toMedia3Crop
 import com.elfen.clipkeep.domain.repository.EditRepository
 import com.elfen.clipkeep.utils.getFileName
+import com.elfen.clipkeep.utils.getMediaMetadata
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -58,7 +61,7 @@ class EditRepositoryImpl @Inject constructor(
 ) : EditRepository {
     override suspend fun startEdit(uri: Uri): EditingClip {
         val mimeType = context.contentResolver.getType(uri) ?: throw VideoError.ReadingFailed
-        val (width, height, duration, thumbnail) = uri.getMediaMetadata()
+        val (width, height, duration, thumbnail) = uri.getMediaMetadata(context)
         val fileName = context.contentResolver.getFileName(uri) ?: throw VideoError.FileNotFound
         val extension = fileName.substringAfterLast('.')
         val size = context.contentResolver.getFileSize(uri) ?: throw VideoError.FileNotFound
@@ -98,82 +101,6 @@ class EditRepositoryImpl @Inject constructor(
             } else
                 null
         }
-    }
-
-    private data class MediaMetadata(
-        val width: Int,
-        val height: Int,
-        val duration: Long,
-        val thumbnail: Uri
-    )
-
-    @OptIn(ExperimentalUuidApi::class)
-    private fun Uri.getMediaMetadata(isContentUri: Boolean = true): MediaMetadata {
-        val retriever = MediaMetadataRetriever()
-
-        try {
-            return if (isContentUri) {
-                val pfd = requireNotNull(
-                    context.contentResolver.openFileDescriptor(this, "r")
-                )
-
-                pfd.use {
-                    retriever.setDataSource(it.fileDescriptor)
-                    val metadata = retriever.getMetadata()
-
-                    metadata
-                }
-            } else {
-                retriever.setDataSource(toFile().absolutePath)
-                retriever.getMetadata()
-            }
-        } catch (e: VideoError) {
-            e.printStackTrace()
-            throw e
-        } catch (e: Exception) {
-            e.printStackTrace()
-            throw VideoError.ReadingFailed
-        }
-    }
-
-    @OptIn(ExperimentalUuidApi::class)
-    private fun MediaMetadataRetriever.getMetadata(): MediaMetadata {
-        val width =
-            this.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
-        val height =
-            this.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
-        val rotation =
-            this.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)!!.toInt()
-        val isPortrait = rotation == 90 || rotation == 270
-
-        Log.d(TAG, "getMetadata: rotation: $rotation")
-        val duration =
-            this.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-                ?.toLong()
-                ?: throw VideoError.ReadingFailed
-
-        val bitmap = (this.getFrameAtTime(
-            (duration / 10) * 1000L,
-            MediaMetadataRetriever.OPTION_CLOSEST_SYNC
-        ) ?: throw VideoError.ReadingFailed)
-
-        val thumbnailFile = File(context.filesDir, "${Uuid.generateV4()}.jpg")
-        thumbnailFile.outputStream().use { output ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 85, output)
-        }
-
-        bitmap.recycle()
-        this.release()
-
-        if (width.isNullOrBlank() || height.isNullOrBlank())
-            throw VideoError.ReadingFailed
-
-        return MediaMetadata(
-            width = if (isPortrait) height.toInt() else width.toInt(),
-            height = if (!isPortrait) height.toInt() else width.toInt(),
-            duration = duration,
-            thumbnail = thumbnailFile.toUri()
-        ).also { Log.d(TAG, "getMetadata: $it") }
     }
 
     override suspend fun renameEdit(
@@ -260,115 +187,9 @@ class EditRepositoryImpl @Inject constructor(
 
     @androidx.annotation.OptIn(UnstableApi::class)
     override suspend fun confirm(id: Long) {
-        // FIXME: This function must start up a foreground service instead of doing everything here
-        val clip = editDao.queryEditWithPartsById(id)?.asAppModel() ?: throw AppError.NotFound
-
-        clip.parts.forEach { part ->
-            val uri = render(clip.uri, clip, part)
-            val metadata = uri.getMediaMetadata(isContentUri = false)
-            val size = uri.toFile().length()
-
-            clipDao.insertClip(
-                ClipEntity(
-                    uri = uri.toString(),
-                    thumbnailUri = metadata.thumbnail.toString(),
-                    width = metadata.width,
-                    height = metadata.height,
-                    durationMs = metadata.duration,
-                    title = part.name,
-                    source = clip.uri.toString(),
-                    size = size
-                )
-            )
-        }
-    }
-
-    @OptIn(ExperimentalUuidApi::class)
-    @UnstableApi
-    private suspend fun render(uri: Uri, edit: EditingClip, clip: EditingClipPart): Uri =
-        suspendCancellableCoroutine { continuation ->
-            Log.d("ClipperViewModel", "Starting");
-            val inputMediaItem =
-                MediaItem.Builder()
-                    .setUri(uri)
-                    .setClippingConfiguration(
-                        MediaItem.ClippingConfiguration.Builder()
-                            .setStartPositionMs(clip.startMs)
-                            .setEndPositionMs(clip.finishMs)
-                            .build()
-                    )
-                    .build()
-            val editedMediaItem = EditedMediaItem.Builder(inputMediaItem)
-                .setEffects(
-                    Effects(
-                        listOf(),
-                        listOf(
-                            clip.crop.toMedia3Crop(edit.width, edit.height)
-                        )
-                    )
-                )
-                .build()
-
-            val videoEncoderSettings = VideoEncoderSettings.Builder()
-                .setBitrate(getRecommendedBitrate(edit.width, edit.height))
-                .build()
-
-            val transformer =
-                Transformer.Builder(context)
-                    .setVideoMimeType(MimeTypes.VIDEO_H265)
-                    .setEncoderFactory(
-                        DefaultEncoderFactory.Builder(context)
-                            .setRequestedVideoEncoderSettings(videoEncoderSettings)
-                            .build()
-
-                    )
-                    .build();
-            val outputFile =
-                File(
-                    context.filesDir,
-                    "${Uuid.generateV4()}.${context.getFileName(uri)!!.substringAfterLast('.')}"
-                )
-
-            transformer.addListener(
-                object : Transformer.Listener {
-                    override fun onCompleted(composition: Composition, exportResult: ExportResult) {
-                        super.onCompleted(composition, exportResult)
-
-                        continuation.resume(outputFile.toUri())
-                    }
-
-                    override fun onError(
-                        composition: Composition,
-                        exportResult: ExportResult,
-                        exportException: ExportException
-                    ) {
-                        super.onError(composition, exportResult, exportException)
-                        continuation.resumeWithException(exportException)
-                    }
-                }
-            )
-            transformer.start(editedMediaItem, outputFile.absolutePath)
-
-            continuation.invokeOnCancellation { transformer.cancel() }
-        }
-
-    /**
-     * Picks a reasonable H.265 bitrate based on the video's resolution.
-     *
-     * @return bitrate in bits per second
-     */
-    private fun getRecommendedBitrate(
-        width: Int,
-        height: Int
-    ): Int {
-        val pixels = width.toLong() * height
-
-        return when {
-            pixels <= 854L * 480 -> 800_000       // 480p or lower
-            pixels <= 1280L * 720 -> 1_500_000    // 720p
-            pixels <= 1920L * 1080 -> 3_000_000   // 1080p
-            pixels <= 2560L * 1440 -> 6_000_000   // 1440p
-            else -> 10_000_000                    // 4K+
-        }
+        val intent = Intent(context, RenderService::class.java)
+        intent.action = "RENDER"
+        intent.putExtra("edit_id", id)
+        context.startForegroundService(intent)
     }
 }

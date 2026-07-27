@@ -1,7 +1,10 @@
 package com.elfen.clipkeep
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.util.Log
@@ -45,92 +48,27 @@ class MainActivity : ComponentActivity() {
     @OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        createNotificationChannel(this)
         enableEdgeToEdge()
         setContent {
             ClipKeepTheme {
                 Navigation()
-//                var video by remember { mutableStateOf<Uri?>(null) }
-//                val launcher =
-//                    rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
-//                        video = it
-//                    }
-//                val startSeconds = rememberTextFieldState("0");
-//                val endSeconds = rememberTextFieldState("1")
-//
-//                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-//                    Column(
-//                        modifier = Modifier
-//                            .fillMaxSize()
-//                            .padding(innerPadding),
-//                        verticalArrangement = Arrangement.spacedBy(16.dp)
-//                    ) {
-//                        Button(
-//                            onClick = {
-//                                launcher.launch(arrayOf("video/*"))
-//                            }
-//                        ) {
-//                            Text("Pick Video")
-//                        }
-//
-//                        if (video != null) {
-//                            Text("URI: $video", modifier = Modifier.fillMaxWidth())
-//
-//                            Row(
-//                                modifier = Modifier.fillMaxWidth(),
-//                                verticalAlignment = Alignment.CenterVertically,
-//                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-//                            ) {
-//                                TextField(
-//                                    modifier = Modifier.weight(1f),
-//                                    state = startSeconds,
-//                                    label = {
-//                                        Text("Start Seconds")
-//                                    },
-//                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-//                                )
-//                                TextField(
-//                                    modifier = Modifier.weight(1f),
-//                                    state = endSeconds,
-//                                    label = {
-//                                        Text("End Seconds")
-//                                    },
-//                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-//                                )
-//                            }
-//
-//                            Button(
-//                                onClick = {
-//                                    Log.d("MainActivity", "Starting");
-//                                    val inputMediaItem =
-//                                        MediaItem.Builder()
-//                                            .setUri(video)
-//                                            .setClippingConfiguration(
-//                                                MediaItem.ClippingConfiguration.Builder()
-//                                                    .setStartPositionMs(
-//                                                        startSeconds.text.toString().toInt() * 1000L
-//                                                    )
-//                                                    .setEndPositionMs(
-//                                                        endSeconds.text.toString().toInt() * 1000L
-//                                                    )
-//                                                    .build()
-//                                            )
-//                                            .build()
-//                                    val transformer =
-//                                        Transformer.Builder(this@MainActivity)
-//                                            .build();
-//                                    val outputFile =
-//                                        File(filesDir, this@MainActivity.getFileName(video!!))
-//
-//                                    transformer.start(inputMediaItem, outputFile.absolutePath)
-//                                    Log.d("MainActivity", "Finished");
-//                                }
-//                            ) {
-//                                Text("Crop Video")
-//                            }
-//                        }
-//                    }
-//                }
             }
         }
+    }
+
+    fun createNotificationChannel(context: Context) {
+        val importance = NotificationManager.IMPORTANCE_DEFAULT
+        val channel = NotificationChannel(
+            "RENDER_NOTIFICATION",
+            "Render Notification",
+            importance
+        ).apply {
+            description = "Displays information about the render progress"
+        }
+        // Register the channel with the system.
+        val notificationManager: NotificationManager =
+            context.getSystemService(NotificationManager::class.java) as NotificationManager
+        notificationManager.createNotificationChannel(channel)
     }
 }

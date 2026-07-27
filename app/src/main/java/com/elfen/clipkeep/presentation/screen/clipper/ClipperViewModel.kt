@@ -89,10 +89,9 @@ class ClipperViewModel @AssistedInject constructor(
             }
 
             ClipperUiEvent.Render -> {
-                _state.update { it.copy(isRendering = true) }
                 viewModelScope.launch {
                     editRepository.confirm(id = editId)
-                    _state.update { it.copy(isRendering = false) }
+                    _state.update { it.copy(isRendering = true) }
                 }
             }
 
