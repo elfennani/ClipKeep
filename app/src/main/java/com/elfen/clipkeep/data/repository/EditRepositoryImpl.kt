@@ -12,12 +12,15 @@ import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.transformer.Codec
 import androidx.media3.transformer.Composition
+import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.Effects
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.Transformer
+import androidx.media3.transformer.VideoEncoderSettings
 import com.elfen.clipkeep.data.local.dao.ClipDao
 import com.elfen.clipkeep.data.local.dao.EditDao
 import com.elfen.clipkeep.data.local.model.ClipEntity
@@ -305,9 +308,20 @@ class EditRepositoryImpl @Inject constructor(
                     )
                 )
                 .build()
+
+            val videoEncoderSettings = VideoEncoderSettings.Builder()
+                .setBitrate(getRecommendedBitrate(edit.width, edit.height))
+                .build()
+
             val transformer =
                 Transformer.Builder(context)
                     .setVideoMimeType(MimeTypes.VIDEO_H265)
+                    .setEncoderFactory(
+                        DefaultEncoderFactory.Builder(context)
+                            .setRequestedVideoEncoderSettings(videoEncoderSettings)
+                            .build()
+
+                    )
                     .build();
             val outputFile =
                 File(
@@ -337,4 +351,24 @@ class EditRepositoryImpl @Inject constructor(
 
             continuation.invokeOnCancellation { transformer.cancel() }
         }
+
+    /**
+     * Picks a reasonable H.265 bitrate based on the video's resolution.
+     *
+     * @return bitrate in bits per second
+     */
+    private fun getRecommendedBitrate(
+        width: Int,
+        height: Int
+    ): Int {
+        val pixels = width.toLong() * height
+
+        return when {
+            pixels <= 854L * 480 -> 800_000       // 480p or lower
+            pixels <= 1280L * 720 -> 1_500_000    // 720p
+            pixels <= 1920L * 1080 -> 3_000_000   // 1080p
+            pixels <= 2560L * 1440 -> 6_000_000   // 1440p
+            else -> 10_000_000                    // 4K+
+        }
+    }
 }

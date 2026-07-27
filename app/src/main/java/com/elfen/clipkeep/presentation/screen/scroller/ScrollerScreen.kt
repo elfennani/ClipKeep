@@ -92,6 +92,7 @@ private fun ScrollerScreen(
                 ExoPlayer.Builder(context)
                     .build().apply {
                         playWhenReady = true
+                        volume = 0f
                     }
             }
 
@@ -106,7 +107,8 @@ private fun ScrollerScreen(
                 modifier = Modifier.fillMaxSize(),
                 player = player,
                 contentScale = ContentScale.Fit,
-                surfaceType = SURFACE_TYPE_TEXTURE_VIEW
+                surfaceType = SURFACE_TYPE_TEXTURE_VIEW,
+                showControls = false
             )
         }
 
