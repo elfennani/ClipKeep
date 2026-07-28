@@ -115,38 +115,40 @@ class RenderService : Service() {
     suspend fun render(editId: Long) {
         val edit = editRepository.getEditById(editId).first()
 
-        edit.parts.forEachIndexed { index, part ->
-            val uri = renderPart(edit, part) {
-                Log.d("RenderService", "Progress: $it")
-                val notification = NotificationCompat.Builder(this, "RENDER_NOTIFICATION")
-                    .setSmallIcon(R.drawable.ic_launcher_foreground)
-                    .setContentTitle("Rendering Clip ${index + 1} / ${edit.parts.size}")
-                    .setContentText("${(it * 100).toInt()}%")
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    .setProgress(100, (it * 100).toInt(), false)
-                    .setSilent(true)
-                    .build()
+        edit.parts
+            .filter { it.enabled }
+            .forEachIndexed { index, part ->
+                val uri = renderPart(edit, part) {
+                    Log.d("RenderService", "Progress: $it")
+                    val notification = NotificationCompat.Builder(this, "RENDER_NOTIFICATION")
+                        .setSmallIcon(R.drawable.ic_launcher_foreground)
+                        .setContentTitle("Rendering Clip ${index + 1} / ${edit.parts.size}")
+                        .setContentText("${(it * 100).toInt()}%")
+                        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                        .setProgress(100, (it * 100).toInt(), false)
+                        .setSilent(true)
+                        .build()
 
-                val notificationManager = getSystemService(NotificationManager::class.java)
-                notificationManager.notify(100, notification)
-            }
-            val metadata = uri.getMediaMetadata(this, isContentUri = false)
-            val size = uri.toFile().length()
+                    val notificationManager = getSystemService(NotificationManager::class.java)
+                    notificationManager.notify(100, notification)
+                }
+                val metadata = uri.getMediaMetadata(this, isContentUri = false)
+                val size = uri.toFile().length()
 
-            clipDao.insertClip(
-                ClipEntity(
-                    uri = uri.toString(),
-                    thumbnailUri = metadata.thumbnail.toString(),
-                    width = metadata.width,
-                    height = metadata.height,
-                    durationMs = metadata.duration,
-                    title = part.name,
-                    source = edit.uri.toString(),
-                    rotation = 0f,
-                    size = size
+                clipDao.insertClip(
+                    ClipEntity(
+                        uri = uri.toString(),
+                        thumbnailUri = metadata.thumbnail.toString(),
+                        width = metadata.width,
+                        height = metadata.height,
+                        durationMs = metadata.duration,
+                        title = part.name,
+                        source = edit.uri.toString(),
+                        rotation = 0f,
+                        size = size
+                    )
                 )
-            )
-        }
+            }
     }
 
     @OptIn(ExperimentalUuidApi::class)
