@@ -22,4 +22,8 @@ class ClipRepositoryImpl @Inject constructor(
     override suspend fun renameClip(id: Long, name: String?) {
         clipDao.updateTitle(id, name)
     }
+
+    override suspend fun rotateClip(id: Long, rotation: Float) {
+        clipDao.updateRotation(id, rotation)
+    }
 }
