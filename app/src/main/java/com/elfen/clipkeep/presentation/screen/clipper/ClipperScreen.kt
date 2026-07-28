@@ -2,6 +2,7 @@ package com.elfen.clipkeep.presentation.screen.clipper
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -49,6 +51,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -283,6 +286,7 @@ private fun ClipperScreen(
                         ) {
                             var lastSeek by remember { mutableLongStateOf(0) }
                             var previousPlaybackState by remember { mutableStateOf<Boolean?>(null) }
+                            val interactionSource = remember { MutableInteractionSource() }
 
                             Slider(
                                 value = temp ?: playerState.currentPosition.toFloat(),
@@ -310,7 +314,21 @@ private fun ClipperScreen(
                                     previousPlaybackState = null
                                     temp = null
                                 },
-                                valueRange = 0f..(playerState.duration?.toFloat() ?: 0f)
+                                valueRange = 0f..(playerState.duration?.toFloat() ?: 0f),
+                                interactionSource = interactionSource,
+                                thumb = {
+                                    SliderDefaults.Thumb(
+                                        interactionSource = interactionSource,
+                                        thumbSize = DpSize(16.dp, 16.dp)
+                                    )
+                                },
+                                track = { sliderState ->
+                                    SliderDefaults.Track(
+                                        sliderState = sliderState,
+                                        thumbTrackGapSize = 4.dp,
+                                        modifier = Modifier.height(8.dp)
+                                    )
+                                },
                             )
                         }
                     }
