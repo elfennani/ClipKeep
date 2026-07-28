@@ -4,5 +4,6 @@ import com.elfen.clipkeep.domain.model.Clip
 
 data class ScrollerUiState(
     val isLoading: Boolean = true,
-    val clips: List<Clip> = emptyList()
+    val clips: List<Clip> = emptyList(),
+    val fullscreen: Boolean = false
 )

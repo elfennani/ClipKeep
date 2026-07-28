@@ -9,6 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.execSQL
 import com.elfen.clipkeep.data.local.ClipDatabase
 import com.elfen.clipkeep.data.local.dao.ClipDao
+import com.elfen.clipkeep.data.local.dataStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -71,6 +72,10 @@ object AppModule {
             .addMigrations(MIGRATION_1_2)
             .build()
     }
+
+    @Provides
+    @Singleton
+    fun dataStore(@ApplicationContext context: Context) = context.dataStore
 
     @Provides
     @Singleton

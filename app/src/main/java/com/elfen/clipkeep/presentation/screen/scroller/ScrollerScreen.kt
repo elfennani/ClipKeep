@@ -6,7 +6,12 @@ import android.annotation.SuppressLint
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.Interaction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -93,6 +98,7 @@ fun ScrollerScreen(
         state = state,
         clipId = route.clipId,
         onRotate = viewModel::rotate,
+        onToggleFullscreen = viewModel::toggleFullscreen,
         onBack = onBack
     )
 }
@@ -105,6 +111,7 @@ private fun ScrollerScreen(
     isPreview: Boolean = false,
     clipId: Long? = null,
     onRotate: (id: Long, rotation: Float) -> Unit = { _, _ -> },
+    onToggleFullscreen: () -> Unit = {},
     onBack: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -114,9 +121,7 @@ private fun ScrollerScreen(
     val pagerState = rememberPagerState(
         pageCount = { state.clips.size }
     )
-    var fillScreen by rememberSaveable {
-        mutableStateOf(false)
-    }
+    var hideControls by remember { mutableStateOf(false) }
 
     LaunchedEffect(state) {
         if (state.clips.fastAny { it.id == clipId } && !found) {
@@ -160,6 +165,13 @@ private fun ScrollerScreen(
                     onDispose { player.release() }
                 }
 
+                LaunchedEffect(pagerState.currentPage == page) {
+                    if (pagerState.currentPage == page)
+                        player?.play()
+                    else
+                        player?.pause()
+                }
+
                 LaunchedEffect(rotation) {
                     Log.d("ScrollerScreen", "clip: $clip")
 
@@ -182,11 +194,15 @@ private fun ScrollerScreen(
                 }
 
                 Box {
+                    val interactionSource = remember { MutableInteractionSource() }
                     Player(
                         modifier = Modifier
-                            .fillMaxSize(),
+                            .fillMaxSize()
+                            .clickable(indication = null, interactionSource = interactionSource) {
+                                hideControls = !hideControls
+                            },
                         player = player,
-                        contentScale = if (fillScreen)
+                        contentScale = if (state.fullscreen)
                             ContentScale.Crop
                         else
                             ContentScale.Fit,
@@ -195,114 +211,126 @@ private fun ScrollerScreen(
                         shutter = {}
                     )
 
-                    Column(
+                    AnimatedVisibility(
+                        visible = !hideControls,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(
-                                        Color.Transparent,
-                                        Color.Black.copy(alpha = 0.5f),
-                                    )
-                                )
-                            )
-                            .padding(16.dp)
-                            .padding(WindowInsets.navigationBars.asPaddingValues()),
+                            .fillMaxWidth(),
+                        enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+                        exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 })
                     ) {
-                        CompositionLocalProvider(LocalContentColor provides Color.White) {
-                            PlayerExternalControls(playerState = playerState)
-
-                            var lastSeek by remember { mutableLongStateOf(0) }
-                            var previousPlaybackState by remember {
-                                mutableStateOf<Boolean?>(
-                                    null
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            Color.Transparent,
+                                            Color.Black.copy(alpha = 0.5f),
+                                        )
+                                    )
                                 )
-                            }
-                            val interactionSource = remember { MutableInteractionSource() }
+                                .padding(16.dp)
+                                .padding(WindowInsets.navigationBars.asPaddingValues()),
+                        ) {
+                            CompositionLocalProvider(LocalContentColor provides Color.White) {
+                                PlayerExternalControls(playerState = playerState)
 
-                            Slider(
-                                value = if (isPreview) 33f else (temp
-                                    ?: playerState.currentPosition.toFloat()),
-                                onValueChange = {
-                                    temp = it
-
-                                    if (previousPlaybackState == null)
-                                        previousPlaybackState = player?.isPlaying
-
-                                    player?.pause()
-                                    if (Clock.System.now()
-                                            .toEpochMilliseconds() - lastSeek > 200
-                                    ) {
-                                        player?.seekTo(it.toLong())
-                                        lastSeek = Clock.System.now().toEpochMilliseconds()
-                                    }
-                                },
-                                onValueChangeFinished = {
-                                    player?.seekTo(temp!!.toLong())
-                                    if (previousPlaybackState == true)
-                                        player?.play()
-                                    else if (previousPlaybackState == false) {
-                                        player?.pause()
-                                    }
-                                    previousPlaybackState = null
-                                    temp = null
-                                },
-                                valueRange = 0f..(if (isPreview) 200f else playerState.duration?.toFloat()
-                                    ?: 0f),
-                                interactionSource = interactionSource,
-                                thumb = {
-                                    SliderDefaults.Thumb(
-                                        interactionSource = interactionSource,
-                                        thumbSize = DpSize(16.dp, 16.dp)
+                                var lastSeek by remember { mutableLongStateOf(0) }
+                                var previousPlaybackState by remember {
+                                    mutableStateOf<Boolean?>(
+                                        null
                                     )
-                                },
-                                track = { sliderState ->
-                                    SliderDefaults.Track(
-                                        sliderState = sliderState,
-                                        thumbTrackGapSize = 4.dp,
-                                        modifier = Modifier.height(8.dp)
-                                    )
-                                },
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                IconButton(
-                                    onClick = {
-                                        rotation = (rotation ?: 0f).minus(90f)
-                                    }
-                                ) {
-                                    Icon(painterResource(R.drawable.outline_rotate_right_24), null)
                                 }
-                                AnimatedVisibility(
-                                    visible = rotation != null,
+                                val interactionSource = remember { MutableInteractionSource() }
+
+                                Slider(
+                                    value = if (isPreview) 33f else (temp
+                                        ?: playerState.currentPosition.toFloat()),
+                                    onValueChange = {
+                                        temp = it
+
+                                        if (previousPlaybackState == null)
+                                            previousPlaybackState = player?.isPlaying
+
+                                        player?.pause()
+                                        if (Clock.System.now()
+                                                .toEpochMilliseconds() - lastSeek > 200
+                                        ) {
+                                            player?.seekTo(it.toLong())
+                                            lastSeek = Clock.System.now().toEpochMilliseconds()
+                                        }
+                                    },
+                                    onValueChangeFinished = {
+                                        player?.seekTo(temp!!.toLong())
+                                        if (previousPlaybackState == true)
+                                            player?.play()
+                                        else if (previousPlaybackState == false) {
+                                            player?.pause()
+                                        }
+                                        previousPlaybackState = null
+                                        temp = null
+                                    },
+                                    valueRange = 0f..(if (isPreview) 200f else playerState.duration?.toFloat()
+                                        ?: 0f),
+                                    interactionSource = interactionSource,
+                                    thumb = {
+                                        SliderDefaults.Thumb(
+                                            interactionSource = interactionSource,
+                                            thumbSize = DpSize(16.dp, 16.dp)
+                                        )
+                                    },
+                                    track = { sliderState ->
+                                        SliderDefaults.Track(
+                                            sliderState = sliderState,
+                                            thumbTrackGapSize = 4.dp,
+                                            modifier = Modifier.height(8.dp)
+                                        )
+                                    },
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
                                     IconButton(
                                         onClick = {
-                                            onRotate(clip.id, rotation!!)
+                                            rotation = (rotation ?: 0f).minus(90f)
                                         }
                                     ) {
-                                        Icon(painterResource(R.drawable.outline_check_24), null)
+                                        Icon(
+                                            painterResource(R.drawable.outline_rotate_right_24),
+                                            null
+                                        )
                                     }
+                                    AnimatedVisibility(
+                                        visible = rotation != null,
+                                    ) {
+                                        IconButton(
+                                            onClick = {
+                                                onRotate(clip.id, rotation!!)
+                                            }
+                                        ) {
+                                            Icon(painterResource(R.drawable.outline_check_24), null)
+                                        }
+                                    }
+
+                                    Spacer(Modifier.weight(1f))
+
+                                    IconButton(
+                                        onClick = onToggleFullscreen
+                                    ) {
+                                        Icon(
+                                            painterResource(
+                                                if (state.fullscreen)
+                                                    R.drawable.outline_fit_screen_24
+                                                else
+                                                    R.drawable.outline_fullscreen_24
+                                            ), null
+                                        )
+                                    }
+
                                 }
-
-                                Spacer(Modifier.weight(1f))
-
-                                IconButton(
-                                    onClick = { fillScreen = !fillScreen }
-                                ) {
-                                    Icon(
-                                        painterResource(
-                                            if (fillScreen)
-                                                R.drawable.outline_fit_screen_24
-                                            else
-                                                R.drawable.outline_fullscreen_24
-                                        ), null
-                                    )
-                                }
-
                             }
                         }
                     }
