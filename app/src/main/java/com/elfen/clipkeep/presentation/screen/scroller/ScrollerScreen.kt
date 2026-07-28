@@ -3,15 +3,20 @@ package com.elfen.clipkeep.presentation.screen.scroller
 import android.annotation.SuppressLint
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.FloatingActionButton
@@ -29,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -73,7 +79,7 @@ fun ScrollerScreen(
 private fun ScrollerScreen(
     state: ScrollerUiState,
     clipId: Long? = null,
-    onRotate: (id: Long) -> Unit = {},
+    onRotate: (id: Long, rotation: Float) -> Unit = { _, _ -> },
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -83,6 +89,9 @@ private fun ScrollerScreen(
     val pagerState = rememberPagerState(
         pageCount = { state.clips.size }
     )
+    var fillScreen by rememberSaveable {
+        mutableStateOf(false)
+    }
 
     LaunchedEffect(state) {
         if (state.clips.fastAny { it.id == clipId } && !found) {
@@ -93,12 +102,19 @@ private fun ScrollerScreen(
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    onRotate(state.clips[pagerState.currentPage].id)
-                }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(painterResource(R.drawable.outline_rotate_right_24), null)
+                FloatingActionButton(onClick = { fillScreen = !fillScreen }) {
+                    Icon(
+                        painterResource(
+                            if (fillScreen)
+                                R.drawable.outline_fit_screen_24
+                            else
+                                R.drawable.outline_fullscreen_24
+                        ), null
+                    )
+                }
             }
         },
         containerColor = Color.Black
@@ -113,7 +129,8 @@ private fun ScrollerScreen(
                 state = pagerState,
             ) { page ->
                 val clip = state.clips[page]
-                val player = remember {
+                var rotation by remember { mutableStateOf<Float?>(null) }
+                val player = remember(rotation) {
                     ExoPlayer.Builder(context)
                         .build().apply {
                             playWhenReady = true
@@ -121,7 +138,7 @@ private fun ScrollerScreen(
                         }
                 }
 
-                DisposableEffect(Unit) {
+                DisposableEffect(rotation) {
                     player.setMediaItem(MediaItem.fromUri(clip.uri))
                     player.prepare()
 
@@ -129,31 +146,67 @@ private fun ScrollerScreen(
                     onDispose { player.release() }
                 }
 
-                LaunchedEffect(clip.rotation) {
+                LaunchedEffect(rotation) {
                     Log.d("ScrollerScreen", "clip: $clip")
 
-                    val position = player.currentPosition
-                    player.setVideoEffects(
-                        listOf(
-                            ScaleAndRotateTransformation.Builder()
-                                .setRotationDegrees(clip.rotation)
-                                .build()
+                    if (rotation != null) {
+                        val position = player.currentPosition
+                        player.setVideoEffects(
+                            listOf(
+                                ScaleAndRotateTransformation.Builder()
+                                    .setRotationDegrees(rotation!!)
+                                    .build()
+                            )
                         )
-                    )
-                    player.setMediaItem(player.currentMediaItem!!)
-                    player.prepare()
-                    player.seekTo(position)
-                    player.play()
+                        player.setMediaItem(player.currentMediaItem!!)
+                        player.prepare()
+                        player.seekTo(position)
+                        player.play()
+                    }
                 }
 
-                Player(
-                    modifier = Modifier.fillMaxSize(),
-                    player = player,
-                    contentScale = ContentScale.Fit,
-                    surfaceType = SURFACE_TYPE_TEXTURE_VIEW,
-                    showControls = false,
-                    shutter = {}
-                )
+                Box {
+                    Player(
+                        modifier = Modifier
+                            .fillMaxSize(),
+                        player = player,
+                        contentScale = if (fillScreen)
+                            ContentScale.Crop
+                        else
+                            ContentScale.Fit,
+                        surfaceType = SURFACE_TYPE_TEXTURE_VIEW,
+                        showControls = false,
+                        shutter = {}
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FloatingActionButton(
+                            onClick = {
+                                rotation = (rotation ?: 0f).minus(90f)
+                            }
+                        ) {
+                            Icon(painterResource(R.drawable.outline_rotate_right_24), null)
+                        }
+
+                        AnimatedVisibility(
+                            visible = rotation != null,
+                        ) {
+                            FloatingActionButton(
+                                onClick = {
+                                    onRotate(clip.id, rotation!!)
+                                }
+                            ) {
+                                Icon(painterResource(R.drawable.outline_check_24), null)
+                            }
+                        }
+                    }
+                }
             }
 
             Row(

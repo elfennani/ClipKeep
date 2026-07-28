@@ -26,12 +26,9 @@ class ScrollerViewModel @AssistedInject constructor(
         ScrollerUiState()
     )
 
-    fun rotate(clipId: Long) {
+    fun rotate(clipId: Long, rotation: Float) {
         viewModelScope.launch {
-            clipRepository.rotateClip(
-                clipId,
-                state.value.clips.first { it.id == clipId }.rotation - 90f
-            )
+            clipRepository.rotateClip(clipId, rotation)
         }
     }
 

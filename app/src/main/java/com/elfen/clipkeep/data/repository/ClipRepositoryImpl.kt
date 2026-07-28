@@ -1,15 +1,19 @@
 package com.elfen.clipkeep.data.repository
 
+import android.content.Context
 import com.elfen.clipkeep.data.local.dao.ClipDao
 import com.elfen.clipkeep.data.local.model.asAppModel
+import com.elfen.clipkeep.data.services.RotateService
 import com.elfen.clipkeep.domain.model.Clip
 import com.elfen.clipkeep.domain.repository.ClipRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 class ClipRepositoryImpl @Inject constructor(
-    private val clipDao: ClipDao
+    private val clipDao: ClipDao,
+    @ApplicationContext private val context: Context
 ) : ClipRepository {
     override fun getClips(): Flow<List<Clip>> {
         return clipDao.queryClipsFlow().map { list -> list.map { it.asAppModel() } }
@@ -24,6 +28,6 @@ class ClipRepositoryImpl @Inject constructor(
     }
 
     override suspend fun rotateClip(id: Long, rotation: Float) {
-        clipDao.updateRotation(id, rotation)
+        RotateService.start(context, id, rotation)
     }
 }

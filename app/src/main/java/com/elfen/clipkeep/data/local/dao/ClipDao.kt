@@ -3,6 +3,7 @@ package com.elfen.clipkeep.data.local.dao
 import androidx.room3.Dao
 import androidx.room3.Insert
 import androidx.room3.Query
+import androidx.room3.Transaction
 import com.elfen.clipkeep.data.local.model.ClipEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -25,4 +26,13 @@ interface ClipDao {
 
     @Query("UPDATE clip SET rotation=:rotation WHERE id=:id")
     suspend fun updateRotation(id: Long, rotation: Float)
+
+    @Query("UPDATE clip SET uri=:uri WHERE id=:id")
+    suspend fun updateFile(id: Long, uri: String)
+
+    @Transaction
+    suspend fun updateFileAndRotation(id: Long, uri: String, rotation: Float) {
+        updateFile(id, uri)
+        updateRotation(id, rotation)
+    }
 }
