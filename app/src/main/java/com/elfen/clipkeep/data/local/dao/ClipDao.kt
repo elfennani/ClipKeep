@@ -22,4 +22,7 @@ interface ClipDao {
 
     @Query("UPDATE clip SET title=:title WHERE id=:id")
     suspend fun updateTitle(id: Long, title: String?)
+
+    @Query("UPDATE clip SET rotation=:rotation WHERE id=:id")
+    suspend fun updateRotation(id: Long, rotation: Float)
 }

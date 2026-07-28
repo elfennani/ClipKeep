@@ -140,6 +140,7 @@ class RenderService : Service() {
                     durationMs = metadata.duration,
                     title = part.name,
                     source = edit.uri.toString(),
+                    rotation = 0f,
                     size = size
                 )
             )

@@ -10,6 +10,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel(assistedFactory = ScrollerViewModel.Factory::class)
@@ -24,6 +25,15 @@ class ScrollerViewModel @AssistedInject constructor(
         SharingStarted.Eagerly,
         ScrollerUiState()
     )
+
+    fun rotate(clipId: Long) {
+        viewModelScope.launch {
+            clipRepository.rotateClip(
+                clipId,
+                state.value.clips.first { it.id == clipId }.rotation - 90f
+            )
+        }
+    }
 
     @AssistedFactory
     interface Factory {
