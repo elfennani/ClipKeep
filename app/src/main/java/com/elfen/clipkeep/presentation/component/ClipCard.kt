@@ -100,10 +100,10 @@ fun ClipCard(modifier: Modifier = Modifier, clip: Clip) {
     Box(
         modifier = modifier.clip(
             AbsoluteSmoothCornerShape(
-                cornerRadiusTL = 32.dp,
-                cornerRadiusBL = 32.dp,
-                cornerRadiusBR = 32.dp,
-                cornerRadiusTR = 32.dp
+                cornerRadiusTL = 8.dp,
+                cornerRadiusBL = 8.dp,
+                cornerRadiusBR = 8.dp,
+                cornerRadiusTR = 8.dp
             )
         )
     ) {

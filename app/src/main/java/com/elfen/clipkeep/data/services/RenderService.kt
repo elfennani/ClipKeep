@@ -97,6 +97,8 @@ class RenderService : Service() {
             );
         }
 
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.notify(100, notification)
 
         serviceScope.launch {
             try {
@@ -189,7 +191,6 @@ class RenderService : Service() {
                         DefaultEncoderFactory.Builder(this)
                             .setRequestedVideoEncoderSettings(videoEncoderSettings)
                             .build()
-
                     )
                     .build();
             val outputFile =
@@ -198,11 +199,35 @@ class RenderService : Service() {
                     "${Uuid.generateV4()}.${getFileName(uri)!!.substringAfterLast('.')}"
                 )
 
+            val progressHolder = ProgressHolder()
+
+            val job = serviceScope.launch {
+                while (isActive) {
+                    delay(1000.milliseconds)
+
+                    when (transformer.getProgress(progressHolder).also { }) {
+                        Transformer.PROGRESS_STATE_NOT_STARTED -> {
+                            onProgress(0f)
+                        }
+
+                        Transformer.PROGRESS_STATE_WAITING_FOR_AVAILABILITY -> {}
+                        Transformer.PROGRESS_STATE_AVAILABLE -> {
+                            onProgress(progressHolder.progress.toFloat() / 100f)
+                        }
+
+                        Transformer.PROGRESS_STATE_UNAVAILABLE -> {
+                        }
+                    }
+
+                }
+            }
+
             transformer.addListener(
                 object : Transformer.Listener {
                     override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                         super.onCompleted(composition, exportResult)
 
+                        job.cancel()
                         continuation.resume(outputFile.toUri())
                     }
 
@@ -216,30 +241,9 @@ class RenderService : Service() {
                     }
                 }
             )
-            val progressHolder = ProgressHolder()
 
             transformer.start(editedMediaItem, outputFile.absolutePath)
 
-            serviceScope.launch {
-                while (isActive) {
-                    when (transformer.getProgress(progressHolder).also { }) {
-                        Transformer.PROGRESS_STATE_NOT_STARTED -> {
-                            onProgress(0f)
-                        }
-
-                        Transformer.PROGRESS_STATE_WAITING_FOR_AVAILABILITY -> {}
-                        Transformer.PROGRESS_STATE_AVAILABLE -> {
-                            onProgress(progressHolder.progress.toFloat() / 100f)
-                        }
-
-                        Transformer.PROGRESS_STATE_UNAVAILABLE -> {
-                            break;
-                        }
-                    }
-
-                    delay(500.milliseconds)
-                }
-            }
 
             continuation.invokeOnCancellation { transformer.cancel() }
         }
@@ -263,7 +267,6 @@ class RenderService : Service() {
             else -> 10_000_000                    // 4K+
         }
     }
-
 
     override fun onDestroy() {
         super.onDestroy()

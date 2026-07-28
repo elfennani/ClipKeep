@@ -39,15 +39,19 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import okhttp3.internal.notify
 import java.io.File
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.random.Random
+import kotlin.random.nextInt
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -93,11 +97,24 @@ class RotateService : Service() {
             );
         }
 
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.notify(100, notification)
+
         scope.launch {
             try {
                 rotate(id, rotation)
+
+                notificationManager.notify(
+                    Random.nextInt(0, Int.MAX_VALUE),
+                    NotificationCompat.Builder(this@RotateService, "RENDER_NOTIFICATION")
+                        .setSmallIcon(R.drawable.ic_launcher_foreground)
+                        .setContentTitle("Rendering Rotated Video")
+                        .setContentText("Done")
+                        .build()
+                )
             } finally {
                 stopSelf(startId)
+                stopForeground(STOP_FOREGROUND_REMOVE)
             }
         }
 
@@ -182,13 +199,16 @@ class RotateService : Service() {
                     }
                 }
             )
+
+
             val progressHolder = ProgressHolder()
-
-            transformer.start(editedMediaItem, outputFile.absolutePath)
-
             scope.launch {
                 while (isActive) {
-                    when (transformer.getProgress(progressHolder)) {
+                    delay(1000.milliseconds)
+
+                    when (transformer.getProgress(progressHolder).also {
+                        Log.d("RotateService", "progress: $it")
+                    }) {
                         Transformer.PROGRESS_STATE_NOT_STARTED -> {
                             onProgress(0f)
                         }
@@ -199,16 +219,23 @@ class RotateService : Service() {
                         }
 
                         Transformer.PROGRESS_STATE_UNAVAILABLE -> {
-                            break;
                         }
                     }
 
-                    delay(500.milliseconds)
                 }
             }
 
+            transformer.start(editedMediaItem, outputFile.absolutePath)
+
             continuation.invokeOnCancellation { transformer.cancel() }
         }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.cancel(100)
+        scope.cancel();
+    }
 
     companion object {
         const val CLIP_ID_KEY = "CLIP_ID"

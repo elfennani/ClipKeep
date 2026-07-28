@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +28,7 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFloatingActionButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -35,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -127,7 +130,18 @@ private fun HomeScreen(
             }
         } else {
             LazyVerticalStaggeredGrid(
-                modifier = Modifier,
+                modifier = Modifier
+                    .scale(1.01f, 1.005f)
+                    .border(
+                        width = 8.dp,
+                        color = MaterialTheme.colorScheme.background,
+                        shape = AbsoluteSmoothCornerShape(
+                            cornerRadiusTL = 40.dp,
+                            cornerRadiusBL = 40.dp,
+                            cornerRadiusBR = 40.dp,
+                            cornerRadiusTR = 40.dp
+                        )
+                    ),
                 columns = StaggeredGridCells.Fixed(2),
                 verticalItemSpacing = 8.dp,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -135,16 +149,16 @@ private fun HomeScreen(
             ) {
                 items(
                     items = state.clips,
-                    span = { clip -> if ((clip.width.toFloat() / clip.height) >= 1f) StaggeredGridItemSpan.FullLine else StaggeredGridItemSpan.SingleLane }
+//                    span = { clip -> if ((clip.width.toFloat() / clip.height) >= 1f) StaggeredGridItemSpan.FullLine else StaggeredGridItemSpan.SingleLane }
                 ) { clip ->
                     ClipCard(
                         modifier = Modifier
                             .clip(
                                 AbsoluteSmoothCornerShape(
-                                    cornerRadiusTL = 32.dp,
-                                    cornerRadiusBL = 32.dp,
-                                    cornerRadiusBR = 32.dp,
-                                    cornerRadiusTR = 32.dp
+                                    cornerRadiusTL = 8.dp,
+                                    cornerRadiusBL = 8.dp,
+                                    cornerRadiusBR = 8.dp,
+                                    cornerRadiusTR = 8.dp
                                 )
                             )
                             .clickable { onClickClip(clip) },
