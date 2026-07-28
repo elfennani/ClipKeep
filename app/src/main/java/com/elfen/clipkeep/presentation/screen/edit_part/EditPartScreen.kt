@@ -2,8 +2,10 @@ package com.elfen.clipkeep.presentation.screen.edit_part
 
 import android.annotation.SuppressLint
 import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -23,11 +26,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -35,9 +40,12 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -61,9 +69,11 @@ import com.elfen.clipkeep.presentation.component.PlayerExternalControls
 import com.elfen.clipkeep.presentation.state.rememberPlayerState
 import com.elfen.clipkeep.presentation.theme.ClipKeepTheme
 import com.elfen.clipkeep.utils.msToText
+import kotlinx.coroutines.delay
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "EditPartScreen"
 
@@ -80,8 +90,21 @@ fun EditPartScreen(
     EditPartScreen(
         state = state,
         onSetRange = { range -> viewModel.updateRange(range.start, range.endInclusive) },
-        onSetPlayerClipping = viewModel::setPlayerClipping,
+        onSetPlayerClipping = { shouldClip, timeHandle ->
+            if (shouldClip)
+                Log.d(
+                    "UpdateClipping",
+                    "Left=${timeHandle != TimeHandle.Start}, Right=${timeHandle != TimeHandle.Finish}"
+                )
+
+            viewModel.setPlayerClipping(
+                shouldClip,
+                left = timeHandle != TimeHandle.Start,
+                right = timeHandle != TimeHandle.Finish
+            )
+        },
         onUpdateCrop = viewModel::updateCrop,
+        onSetPlayerClippingRange = viewModel::setPlayerClipping,
         onConfirm = {
             viewModel.confirm {
                 onBack()
@@ -99,19 +122,27 @@ private enum class Handle {
     Middle
 }
 
+private enum class TimeHandle {
+    Start,
+    Finish
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "UseOfNonLambdaOffsetOverload")
 @Composable
 private fun EditPartScreen(
     state: EditPartUiState = EditPartUiState(),
     onSetRange: (range: ClosedRange<Long>) -> Unit = {},
-    onSetPlayerClipping: (shouldClip: Boolean) -> Unit = {},
+    onSetPlayerClipping: (shouldClip: Boolean, timeHandle: TimeHandle?) -> Unit = { _, _ -> },
+    onSetPlayerClippingRange: (startMs: Long, endMs: Long) -> Unit = { _, _ -> },
     onUpdateCrop: (crop: Crop) -> Unit = {},
     onConfirm: () -> Unit = {},
     onBack: () -> Unit = {}
 ) {
     val playerState = rememberPlayerState(state.exoPlayer)
     val density = LocalDensity.current
+    var timeHandle by remember { mutableStateOf<TimeHandle?>(null) }
+
 
     LaunchedEffect(state.crop) {
         Log.d(TAG, "Crop Updated: ${state.crop}")
@@ -126,7 +157,16 @@ private fun EditPartScreen(
                     }
                 },
                 title = {
-                    Text(text = "Edit Part")
+                    Column {
+                        Text(text = "Edit Part")
+                        AnimatedVisibility(visible = timeHandle != null) {
+                            val timeHandleTemp by remember { mutableStateOf(timeHandle) }
+                            Text(
+                                text = "Editing ${timeHandleTemp!!.name.lowercase(Locale.ROOT)} time",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
                 },
                 actions = {
                     IconButton(onClick = { onConfirm() }) {
@@ -356,7 +396,7 @@ private fun EditPartScreen(
                     PlayerExternalControls(
                         modifier = Modifier,
                         playerState,
-                        offsetBy = if (state.isClipped) state.startMs else 0,
+                        offsetBy = if (state.isClipped && timeHandle != TimeHandle.Start) state.startMs else 0,
                         overrideDuration = state.edit.duration
                     )
 
@@ -369,7 +409,18 @@ private fun EditPartScreen(
                             .padding(top = 8.dp),
                     ) {
                         Column(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(4.dp))
+                                .then(
+                                    if (timeHandle == TimeHandle.Finish)
+                                        Modifier.alpha(0.5f)
+                                    else
+                                        Modifier
+                                )
+                                .clickable(enabled = timeHandle != TimeHandle.Finish) {
+                                    timeHandle = TimeHandle.Start.takeIf { timeHandle == null }
+                                },
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             Text(
@@ -385,7 +436,17 @@ private fun EditPartScreen(
 
                         Column(
                             modifier = Modifier
-                                .weight(1f),
+                                .weight(1f)
+                                .clip(RoundedCornerShape(4.dp))
+                                .then(
+                                    if (timeHandle == TimeHandle.Start)
+                                        Modifier.alpha(0.5f)
+                                    else
+                                        Modifier
+                                )
+                                .clickable(enabled = timeHandle != TimeHandle.Start) {
+                                    timeHandle = TimeHandle.Finish.takeIf { timeHandle == null }
+                                },
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                             horizontalAlignment = Alignment.End
                         ) {
@@ -404,103 +465,219 @@ private fun EditPartScreen(
 
                     }
 
-                    var initialPosition by remember { mutableStateOf<Long?>(null) }
-                    var tempStart by remember { mutableStateOf<Long?>(null) }
-                    var tempEnd by remember { mutableStateOf<Long?>(null) }
-                    var previousPlaybackState by remember { mutableStateOf<Boolean?>(null) }
-                    var lastSeek by remember { mutableLongStateOf(0) }
-                    val startInteractionSource = remember { MutableInteractionSource() }
-                    val endInteractionSource = remember { MutableInteractionSource() }
 
-                    RangeSlider(
-                        modifier = Modifier
-                            .fillMaxWidth(),
-                        enabled = state.exoPlayer != null,
-                        value = (tempStart?.toFloat() ?: state.startMs.toFloat())..(tempEnd
-                            ?: state.endMs).toFloat(),
-                        onValueChange = {
-                            if (initialPosition == null) {
-                                initialPosition = state.exoPlayer!!.currentPosition
-                                onSetPlayerClipping(false)
-                            }
+                    if (timeHandle == null) {
+                        var initialPosition by remember { mutableStateOf<Long?>(null) }
+                        var tempStart by remember { mutableStateOf<Long?>(null) }
+                        var tempEnd by remember { mutableStateOf<Long?>(null) }
+                        var previousPlaybackState by remember { mutableStateOf<Boolean?>(null) }
+                        var lastSeek by remember { mutableLongStateOf(0) }
+                        val startInteractionSource = remember { MutableInteractionSource() }
+                        val endInteractionSource = remember { MutableInteractionSource() }
+
+                        RangeSlider(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            enabled = state.exoPlayer != null,
+                            value = (tempStart?.toFloat() ?: state.startMs.toFloat())..(tempEnd
+                                ?: state.endMs).toFloat(),
+                            onValueChange = {
+                                if (initialPosition == null) {
+                                    initialPosition = state.exoPlayer!!.currentPosition
+                                    onSetPlayerClipping(false, null)
+                                }
 
 
-                            val startChanged = it.start.toLong() != state.startMs
+                                val startChanged = it.start.toLong() != state.startMs
 
-                            if (startChanged)
-                                tempStart = it.start.toLong()
-                            else
-                                tempEnd = it.endInclusive.toLong()
+                                if (startChanged)
+                                    tempStart = it.start.toLong()
+                                else
+                                    tempEnd = it.endInclusive.toLong()
 
-                            if (previousPlaybackState == null)
-                                previousPlaybackState = state.exoPlayer?.isPlaying
+                                if (previousPlaybackState == null)
+                                    previousPlaybackState = state.exoPlayer?.isPlaying
 
+                                state.exoPlayer?.pause()
+
+                                if (Clock.System.now()
+                                        .toEpochMilliseconds() - lastSeek > 200
+                                ) {
+                                    if (startChanged)
+                                        state.exoPlayer?.seekTo(it.start.toLong())
+                                    else
+                                        state.exoPlayer?.seekTo(it.endInclusive.toLong())
+                                    lastSeek = Clock.System.now().toEpochMilliseconds()
+                                }
+                            },
+                            onValueChangeFinished = {
+                                Log.d(
+                                    TAG,
+                                    "EditPartScreen: $tempStart, $tempEnd, ${state.startMs}, ${state.endMs}"
+                                )
+                                onSetRange(
+                                    (tempStart ?: state.startMs)..(tempEnd ?: state.endMs)
+                                )
+
+                                onSetPlayerClipping(true, null)
+                                state.exoPlayer?.seekTo(
+                                    initialPosition!!.coerceIn(
+                                        tempStart ?: state.startMs,
+                                        tempEnd ?: state.endMs
+                                    )
+                                )
+
+                                if (previousPlaybackState == true)
+                                    state.exoPlayer?.play()
+                                else if (previousPlaybackState == false) {
+                                    state.exoPlayer?.pause()
+                                }
+
+                                previousPlaybackState = null
+                                initialPosition = null
+                                tempStart = null
+                                tempEnd = null
+                            },
+                            valueRange = 0f..state.edit.duration.toFloat(),
+                            startInteractionSource = startInteractionSource,
+                            endInteractionSource = endInteractionSource,
+                            startThumb = {
+                                SliderDefaults.Thumb(
+                                    interactionSource = startInteractionSource,
+                                    thumbSize = DpSize(4.dp, 24.dp),
+                                    enabled = state.exoPlayer != null
+                                )
+                            },
+                            endThumb = {
+                                SliderDefaults.Thumb(
+                                    interactionSource = endInteractionSource,
+                                    thumbSize = DpSize(4.dp, 24.dp),
+                                    enabled = state.exoPlayer != null
+                                )
+                            },
+                            track = { sliderState ->
+                                SliderDefaults.Track(
+                                    rangeSliderState = sliderState,
+                                    thumbTrackGapSize = 0.dp,
+                                    modifier = Modifier.height(8.dp),
+                                    enabled = state.exoPlayer != null
+                                )
+                            },
+                        )
+                    } else {
+                        var lastSeek by remember { mutableLongStateOf(0) }
+                        var previousPlaybackState by remember { mutableStateOf<Boolean?>(null) }
+                        val interactionSource = remember { MutableInteractionSource() }
+                        var temp by remember { mutableStateOf<Float?>(null) }
+                        val start =
+                            if (timeHandle == TimeHandle.Start) 0f else state.startMs.toFloat()
+                        val end =
+                            if (timeHandle == TimeHandle.Start) state.endMs.toFloat() else state.edit.duration.toFloat()
+                        val range = start..end
+                        val initialOffset =
+                            if (state.isClipped && timeHandle == TimeHandle.Finish) state.startMs.toFloat() else 0f
+                        var initialized by remember { mutableStateOf(false) }
+                        val latestStart by rememberUpdatedState(state.startMs)
+                        val latestEnd by rememberUpdatedState(state.endMs)
+
+                        Log.d(
+                            TAG, "EditPartScreen: position: ${
+                                temp ?: (initialOffset + playerState.currentPosition.toFloat())
+                            }"
+                        )
+
+                        DisposableEffect(Unit) {
                             state.exoPlayer?.pause()
 
-                            if (Clock.System.now()
-                                    .toEpochMilliseconds() - lastSeek > 200
-                            ) {
-                                if (startChanged)
-                                    state.exoPlayer?.seekTo(it.start.toLong())
-                                else
-                                    state.exoPlayer?.seekTo(it.endInclusive.toLong())
-                                lastSeek = Clock.System.now().toEpochMilliseconds()
+                            if (timeHandle == TimeHandle.Start) {
+                                onSetPlayerClippingRange(0, state.endMs)
+                                state.exoPlayer?.seekTo(state.startMs)
+                            } else {
+                                state.exoPlayer?.seekTo(state.endMs)
+                                onSetPlayerClippingRange(state.startMs, state.edit.duration)
                             }
-                        },
-                        onValueChangeFinished = {
-                            Log.d(
-                                TAG,
-                                "EditPartScreen: $tempStart, $tempEnd, ${state.startMs}, ${state.endMs}"
-                            )
-                            onSetRange(
-                                (tempStart ?: state.startMs)..(tempEnd ?: state.endMs)
-                            )
 
-                            onSetPlayerClipping(true)
-                            state.exoPlayer?.seekTo(
-                                initialPosition!!.coerceIn(
-                                    tempStart ?: state.startMs,
-                                    tempEnd ?: state.endMs
+                            initialized = true
+
+                            onDispose {
+                                initialized = false
+                                Log.d(TAG, "Clipping to: ${latestStart}..${latestEnd}")
+                                onSetPlayerClippingRange(latestStart, latestEnd)
+                            }
+                        }
+
+                        LaunchedEffect(playerState.currentPosition, temp) {
+                            if (temp != null || !initialized) return@LaunchedEffect
+
+                            if (timeHandle == TimeHandle.Start) {
+                                Log.d(
+                                    TAG,
+                                    "Updating range to: ${playerState.currentPosition}..${state.endMs}"
                                 )
-                            )
-
-                            if (previousPlaybackState == true)
-                                state.exoPlayer?.play()
-                            else if (previousPlaybackState == false) {
-                                state.exoPlayer?.pause()
+                                onSetRange(playerState.currentPosition..state.endMs)
+                            } else {
+                                Log.d(
+                                    TAG,
+                                    "Updating range to: ${state.startMs}..${playerState.currentPosition + state.startMs}"
+                                )
+                                onSetRange(state.startMs..(playerState.currentPosition + state.startMs))
                             }
+                        }
 
-                            previousPlaybackState = null
-                            initialPosition = null
-                            tempStart = null
-                            tempEnd = null
-                        },
-                        valueRange = 0f..state.edit.duration.toFloat(),
-                        startInteractionSource = startInteractionSource,
-                        endInteractionSource = endInteractionSource,
-                        startThumb = {
-                            SliderDefaults.Thumb(
-                                interactionSource = startInteractionSource,
-                                thumbSize = DpSize(4.dp, 24.dp),
-                                enabled = state.exoPlayer != null
-                            )
-                        },
-                        endThumb = {
-                            SliderDefaults.Thumb(
-                                interactionSource = endInteractionSource,
-                                thumbSize = DpSize(4.dp, 24.dp),
-                                enabled = state.exoPlayer != null
-                            )
-                        },
-                        track = { sliderState ->
-                            SliderDefaults.Track(
-                                rangeSliderState = sliderState,
-                                thumbTrackGapSize = 0.dp,
-                                modifier = Modifier.height(8.dp),
-                                enabled = state.exoPlayer != null
-                            )
-                        },
-                    )
+                        Slider(
+                            modifier = Modifier.fillMaxWidth(),
+                            value = temp
+                                ?: (initialOffset + playerState.currentPosition.toFloat()),
+                            onValueChange = {
+                                Log.d(TAG, "Slider: onValueChange: $it")
+                                temp = it
+
+                                if (previousPlaybackState == null)
+                                    previousPlaybackState = state.exoPlayer?.isPlaying
+
+                                state.exoPlayer?.pause()
+
+                                if (Clock.System.now()
+                                        .toEpochMilliseconds() - lastSeek > 200
+                                ) {
+                                    state.exoPlayer?.seekTo(it.toLong())
+                                    lastSeek = Clock.System.now().toEpochMilliseconds()
+                                }
+                            },
+                            onValueChangeFinished = {
+                                Log.d(TAG, "Slider: onValueChangeFinished: $temp")
+                                if (timeHandle == TimeHandle.Start) {
+                                    onSetRange(temp!!.toLong()..state.endMs)
+                                } else {
+                                    onSetRange(state.startMs..temp!!.toLong())
+                                }
+
+                                state.exoPlayer?.seekTo(temp!!.toLong())
+                                if (previousPlaybackState == true)
+                                    state.exoPlayer?.play()
+                                else if (previousPlaybackState == false) {
+                                    state.exoPlayer?.pause()
+                                }
+                                previousPlaybackState = null
+                                temp = null
+                            },
+                            valueRange = range,
+                            interactionSource = interactionSource,
+                            thumb = {
+                                SliderDefaults.Thumb(
+                                    interactionSource = interactionSource,
+                                    thumbSize = DpSize(16.dp, 16.dp)
+                                )
+                            },
+                            track = { sliderState ->
+                                SliderDefaults.Track(
+                                    sliderState = sliderState,
+                                    thumbTrackGapSize = 4.dp,
+                                    modifier = Modifier.height(8.dp)
+                                )
+                            },
+                        )
+                    }
                 }
             }
         }

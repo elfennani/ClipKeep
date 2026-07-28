@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player.REPEAT_MODE_ONE
 import androidx.media3.exoplayer.ExoPlayer
@@ -70,22 +71,45 @@ class EditPartViewModel @AssistedInject constructor(
         _state.update { it.copy(startMs = startMs, endMs = endMs) }
     }
 
-    fun setPlayerClipping(shouldClip: Boolean) {
-        val startMs = state.value.startMs
-        val endMs = state.value.endMs
+    fun setPlayerClipping(startMs: Long?, endMs: Long?) {
+        Log.d("UpdateClipping", "startMs: $startMs, endMs: $endMs")
         val exoPlayer = state.value.exoPlayer ?: return;
 
         val currentPosition = exoPlayer.currentPosition
 
+        // Reset first
+        exoPlayer.setMediaItem(
+            exoPlayer.currentMediaItem!!.buildUpon()
+                .setClippingConfiguration(MediaItem.ClippingConfiguration.UNSET).build(),
+            currentPosition
+        )
+
         val updatedMediaItem = exoPlayer.currentMediaItem!!
             .buildUpon()
             .setClippingConfiguration(
-                if (!shouldClip)
+                if (startMs == null && endMs == null) {
+                    Log.d("UpdateClipping", "updated start clip to: RESET")
                     MediaItem.ClippingConfiguration.UNSET
-                else
+                } else
                     MediaItem.ClippingConfiguration.Builder()
-                        .setStartPositionMs(startMs)
-                        .setEndPositionMs(endMs)
+                        .let {
+                            if (startMs != null) {
+                                Log.d("UpdateClipping", "updated start clip to: $startMs")
+                                it.setStartPositionMs(startMs)
+                            } else {
+                                Log.d("UpdateClipping", "updated start clip to: 0")
+                                it.setStartPositionMs(0)
+                            }
+                        }
+                        .let {
+                            if (endMs != null) {
+                                Log.d("UpdateClipping", "updated end clip to: $endMs")
+                                it.setEndPositionMs(endMs)
+                            } else {
+                                Log.d("UpdateClipping", "updated end clip to: END_OF_SOURCE")
+                                it.setEndPositionMs(C.TIME_END_OF_SOURCE)
+                            }
+                        }
                         .build()
             )
             .build()
@@ -94,10 +118,23 @@ class EditPartViewModel @AssistedInject constructor(
             updatedMediaItem,
             currentPosition
         )
-        _state.update { it.copy(isClipped = shouldClip) }
+        _state.update { it.copy(isClipped = !(startMs == null && endMs == null)) }
 
         exoPlayer.prepare()
-        exoPlayer.play()
+    }
+
+    fun setPlayerClipping(shouldClip: Boolean, left: Boolean = true, right: Boolean = true) {
+        Log.d("UpdateClipping", "shouldClip: $shouldClip, left: $left, right: $right")
+
+        if (!shouldClip) {
+            setPlayerClipping(null, null)
+            return
+        }
+
+        setPlayerClipping(
+            startMs = if (left) state.value.startMs else null,
+            endMs = if (right) state.value.endMs else null
+        )
     }
 
     fun updateCrop(crop: Crop) {
