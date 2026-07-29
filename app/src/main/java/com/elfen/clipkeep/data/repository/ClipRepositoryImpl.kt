@@ -1,6 +1,7 @@
 package com.elfen.clipkeep.data.repository
 
 import android.content.Context
+import androidx.core.net.toFile
 import com.elfen.clipkeep.data.local.dao.ClipDao
 import com.elfen.clipkeep.data.local.model.asAppModel
 import com.elfen.clipkeep.data.services.RotateService
@@ -20,6 +21,9 @@ class ClipRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteClip(id: Long) {
+        val clip = clipDao.queryClip(id)!!.asAppModel()
+        clip.uri.toFile().delete()
+
         clipDao.deleteById(id)
     }
 

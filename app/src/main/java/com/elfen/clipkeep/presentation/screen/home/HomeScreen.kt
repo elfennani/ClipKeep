@@ -29,11 +29,18 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFloatingActionButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,6 +61,7 @@ import com.elfen.clipkeep.presentation.screen.clipper.ClipperRoute
 import com.elfen.clipkeep.presentation.screen.scroller.ScrollerRoute
 import com.elfen.clipkeep.presentation.theme.ClipKeepTheme
 import com.elfen.clipkeep.utils.AbsoluteSmoothCornerShape
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(
@@ -84,6 +92,8 @@ private fun HomeScreen(
     onDeleteClip: (id: Long) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val sheetState = rememberModalBottomSheetState(true)
+    val scope = rememberCoroutineScope()
     val launcher =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             if (uri != null) {
@@ -96,6 +106,37 @@ private fun HomeScreen(
                 }
             }
         }
+    var selectedClipId by remember { mutableStateOf<Long?>(null) }
+
+    if (selectedClipId != null) {
+        ModalBottomSheet(
+            sheetState = sheetState,
+            onDismissRequest = {
+                selectedClipId = null
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        onDeleteClip(selectedClipId!!)
+
+                        scope.launch {
+                            sheetState.hide()
+                        }.invokeOnCompletion {
+                            selectedClipId = null
+                        }
+                    },
+                ) {
+                    Text("Delete Clip")
+                }
+            }
+        }
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -161,7 +202,10 @@ private fun HomeScreen(
                                     cornerRadiusTR = 8.dp
                                 )
                             )
-                            .clickable { onClickClip(clip) },
+                            .combinedClickable(
+                                onLongClick = { selectedClipId = clip.id },
+                                onClick = { onClickClip(clip) }
+                            ),
                         clip = clip
                     )
                 }
