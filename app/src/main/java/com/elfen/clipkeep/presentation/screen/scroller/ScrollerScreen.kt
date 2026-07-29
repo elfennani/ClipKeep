@@ -12,28 +12,23 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.Interaction
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -47,7 +42,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -56,7 +50,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -66,17 +59,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastAny
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.effect.ScaleAndRotateTransformation
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.transformer.Effects
 import androidx.media3.ui.compose.SURFACE_TYPE_TEXTURE_VIEW
 import androidx.media3.ui.compose.material3.Player
-import coil3.request.Disposable
 import com.elfen.clipkeep.R
 import com.elfen.clipkeep.domain.model.Clip
+import com.elfen.clipkeep.domain.model.VideoScalingMode
+import com.elfen.clipkeep.domain.model.next
 import com.elfen.clipkeep.presentation.component.PlayerExternalControls
 import com.elfen.clipkeep.presentation.state.rememberPlayerState
 import com.elfen.clipkeep.presentation.theme.ClipKeepTheme
@@ -193,16 +185,31 @@ private fun ScrollerScreen(
                     }
                 }
 
-                Box {
+                val clipIsRotated = (clip.rotation % 360) == 90f || (clip.rotation % 360) == 270f
+                val clipAspectRatio =
+                    if (clipIsRotated) clip.height.toFloat() / clip.width else clip.width.toFloat() / clip.height
+
+                Box(
+                    modifier = Modifier.fillMaxSize()
+                ) {
                     val interactionSource = remember { MutableInteractionSource() }
                     Player(
                         modifier = Modifier
-                            .fillMaxSize()
+                            .then(
+                                if (state.settings.scalingMode == VideoScalingMode.SCALE_TO_9_16)
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .align(Alignment.Center)
+                                        .aspectRatio(9f / 16)
+                                else
+                                    Modifier
+                                        .fillMaxSize()
+                            )
                             .clickable(indication = null, interactionSource = interactionSource) {
                                 hideControls = !hideControls
                             },
                         player = player,
-                        contentScale = if (state.fullscreen)
+                        contentScale = if (state.settings.scalingMode != VideoScalingMode.SCALE_TO_FIT && clipAspectRatio < 4f / 3)
                             ContentScale.Crop
                         else
                             ContentScale.Fit,
@@ -322,10 +329,11 @@ private fun ScrollerScreen(
                                     ) {
                                         Icon(
                                             painterResource(
-                                                if (state.fullscreen)
-                                                    R.drawable.outline_fit_screen_24
-                                                else
-                                                    R.drawable.outline_fullscreen_24
+                                                when (state.settings.scalingMode.next()) {
+                                                    VideoScalingMode.SCALE_TO_FIT -> R.drawable.outline_fit_screen_24
+                                                    VideoScalingMode.SCALE_TO_9_16 -> R.drawable.sharp_crop_9_16_24
+                                                    VideoScalingMode.SCALE_TO_FILL -> R.drawable.outline_fullscreen_24
+                                                }
                                             ), null
                                         )
                                     }

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.elfen.clipkeep.data.local.DataStorePreferences
 import com.elfen.clipkeep.domain.model.Settings
+import com.elfen.clipkeep.domain.model.next
 import com.elfen.clipkeep.domain.model.settings
 import com.elfen.clipkeep.domain.repository.ClipRepository
 import dagger.assisted.Assisted
@@ -24,7 +25,7 @@ class ScrollerViewModel @AssistedInject constructor(
     val settings = dataStore.settings
 
     val state = combine(settings, clipRepository.getClips()) { settings, clips ->
-        ScrollerUiState(isLoading = false, clips = clips, fullscreen = settings.fullscreen)
+        ScrollerUiState(isLoading = false, clips = clips, settings = settings)
     }.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
@@ -39,7 +40,7 @@ class ScrollerViewModel @AssistedInject constructor(
 
     fun toggleFullscreen() {
         viewModelScope.launch {
-            Settings.setFullscreen(dataStore, !state.value.fullscreen)
+            Settings.setFullscreen(dataStore, state.value.settings.scalingMode.next())
         }
     }
 
