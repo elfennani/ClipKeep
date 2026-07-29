@@ -382,34 +382,34 @@ private fun EditPartScreen(
                                 .border(2.dp, Color.White)
                         ) { }
 
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.SpaceEvenly,
-                        ) {
-                            HorizontalDivider(color = Color.White)
-                            HorizontalDivider(color = Color.White)
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxSize(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                        ) {
-                            VerticalDivider(color = Color.White)
-                            VerticalDivider(color = Color.White)
-                        }
+//                        Column(
+//                            modifier = Modifier.fillMaxSize(),
+//                            verticalArrangement = Arrangement.SpaceEvenly,
+//                        ) {
+//                            HorizontalDivider(color = Color.White)
+//                            HorizontalDivider(color = Color.White)
+//                        }
+//
+//                        Row(
+//                            modifier = Modifier.fillMaxSize(),
+//                            horizontalArrangement = Arrangement.SpaceEvenly,
+//                        ) {
+//                            VerticalDivider(color = Color.White)
+//                            VerticalDivider(color = Color.White)
+//                        }
 
                         Box(
                             modifier = Modifier
                                 .fillMaxHeight()
                                 .aspectRatio(deviceRatio?.takeIf { it > 0 } ?: 1f)
-                                .border(2.dp, Color.Green.copy(0.5f))
+                                .border(2.dp, Color.White.copy(0.5f))
                                 .align(Alignment.Center),
                         )
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(1f / (deviceRatio?.takeIf { it > 0 } ?: 1f))
-                                .border(2.dp, Color.Green.copy(0.5f))
+                                .border(2.dp, Color.White.copy(0.5f))
                                 .align(Alignment.Center),
                         )
                     }

@@ -5,13 +5,18 @@ package com.elfen.clipkeep.presentation.screen.scroller
 import android.annotation.SuppressLint
 import android.util.Log
 import androidx.annotation.OptIn
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.TargetedFlingBehavior
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,17 +30,24 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -48,8 +60,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -72,7 +86,10 @@ import com.elfen.clipkeep.domain.model.next
 import com.elfen.clipkeep.presentation.component.PlayerExternalControls
 import com.elfen.clipkeep.presentation.state.rememberPlayerState
 import com.elfen.clipkeep.presentation.theme.ClipKeepTheme
+import kotlin.math.abs
 import kotlin.time.Clock
+
+private const val TAG = "ScrollerScreen"
 
 @Composable
 fun ScrollerScreen(
@@ -133,6 +150,13 @@ private fun ScrollerScreen(
                     .fillMaxSize()
                     .background(if (isPreview) Color.Gray else Color.Black),
                 state = pagerState,
+                flingBehavior = PagerDefaults.flingBehavior(
+                    state = pagerState, snapAnimationSpec = spring(
+                        stiffness = Spring.StiffnessMedium,
+                        visibilityThreshold = Int.VisibilityThreshold.toFloat(),
+                    )
+                ),
+                key = { state.clips.getOrNull(it)?.id ?: it }
             ) { page ->
                 val clip = state.clips[page]
                 var rotation by remember { mutableStateOf<Float?>(null) }
@@ -143,6 +167,7 @@ private fun ScrollerScreen(
                     ExoPlayer.Builder(context)
                         .build().apply {
                             playWhenReady = true
+                            repeatMode = ExoPlayer.REPEAT_MODE_ALL
                             volume = 0f
                         }
                 }
@@ -185,9 +210,15 @@ private fun ScrollerScreen(
                     }
                 }
 
-                val clipIsRotated = (clip.rotation % 360) == 90f || (clip.rotation % 360) == 270f
+                val clipIsRotated =
+                    (abs(clip.rotation % 360)) == 90f || abs(clip.rotation % 360) == 270f
                 val clipAspectRatio =
                     if (clipIsRotated) clip.height.toFloat() / clip.width else clip.width.toFloat() / clip.height
+
+                Log.d(TAG, "ScrollerScreen: ${clip.rotation % 360}")
+                Log.d(TAG, "ScrollerScreen: $clipIsRotated")
+                Log.d(TAG, "ScrollerScreen: $clipAspectRatio")
+
 
                 Box(
                     modifier = Modifier.fillMaxSize()
@@ -201,6 +232,7 @@ private fun ScrollerScreen(
                                         .fillMaxWidth()
                                         .align(Alignment.Center)
                                         .aspectRatio(9f / 16)
+                                        .clip(RectangleShape)
                                 else
                                     Modifier
                                         .fillMaxSize()
@@ -210,6 +242,7 @@ private fun ScrollerScreen(
                             },
                         player = player,
                         contentScale = if (state.settings.scalingMode != VideoScalingMode.SCALE_TO_FIT && clipAspectRatio < 4f / 3)
+//                        contentScale = if (state.settings.scalingMode == VideoScalingMode.SCALE_TO_FILL)
                             ContentScale.Crop
                         else
                             ContentScale.Fit,
@@ -324,18 +357,38 @@ private fun ScrollerScreen(
 
                                     Spacer(Modifier.weight(1f))
 
-                                    IconButton(
-                                        onClick = onToggleFullscreen
-                                    ) {
-                                        Icon(
-                                            painterResource(
-                                                when (state.settings.scalingMode.next()) {
-                                                    VideoScalingMode.SCALE_TO_FIT -> R.drawable.outline_fit_screen_24
-                                                    VideoScalingMode.SCALE_TO_9_16 -> R.drawable.sharp_crop_9_16_24
-                                                    VideoScalingMode.SCALE_TO_FILL -> R.drawable.outline_fullscreen_24
+                                    if (clipAspectRatio < 4f / 3) {
+                                        TextButton(
+                                            onClick = onToggleFullscreen,
+                                            colors = ButtonDefaults.textButtonColors(
+                                                contentColor = Color.White
+                                            )
+                                        ) {
+                                            AnimatedContent(state.settings.scalingMode) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(
+                                                        when (it) {
+                                                            VideoScalingMode.SCALE_TO_FIT -> "Fit"
+                                                            VideoScalingMode.SCALE_TO_9_16 -> "9:16"
+                                                            VideoScalingMode.SCALE_TO_FILL -> "Fill"
+                                                        },
+                                                        style = MaterialTheme.typography.labelLarge
+                                                    )
+                                                    Spacer(Modifier.width(6.dp))
+                                                    Icon(
+                                                        modifier = Modifier.size(24.dp),
+                                                        painter = painterResource(
+                                                            when (it) {
+                                                                VideoScalingMode.SCALE_TO_FIT -> R.drawable.outline_fit_screen_24
+                                                                VideoScalingMode.SCALE_TO_9_16 -> R.drawable.sharp_crop_9_16_24
+                                                                VideoScalingMode.SCALE_TO_FILL -> R.drawable.outline_fullscreen_24
+                                                            }
+                                                        ),
+                                                        contentDescription = null
+                                                    )
                                                 }
-                                            ), null
-                                        )
+                                            }
+                                        }
                                     }
 
                                 }
