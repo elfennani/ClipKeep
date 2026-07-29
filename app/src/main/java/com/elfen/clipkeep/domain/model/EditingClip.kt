@@ -43,8 +43,8 @@ data class EditingClip(
                 parts = EditingClipPart.samples,
                 size = 180_000_000L,
                 duration = 2_700_000L,
-                width = 3840,
-                height = 2160,
+                width = 2160,
+                height = 3840,
                 thumbnailUri = "content://media/external/video/media/2/thumbnail".toUri()
             ),
             EditingClip(

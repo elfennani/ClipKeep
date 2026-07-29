@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -46,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -142,13 +145,16 @@ private fun EditPartScreen(
     val playerState = rememberPlayerState(state.exoPlayer)
     val density = LocalDensity.current
     var timeHandle by remember { mutableStateOf<TimeHandle?>(null) }
-
+    var deviceRatio by remember { mutableStateOf<Float?>(null) }
 
     LaunchedEffect(state.crop) {
         Log.d(TAG, "Crop Updated: ${state.crop}")
     }
 
     Scaffold(
+        modifier = Modifier.graphicsLayer {
+            deviceRatio = size.width / size.height
+        },
         topBar = {
             TopAppBar(
                 navigationIcon = {
@@ -266,7 +272,6 @@ private fun EditPartScreen(
                         modifier = Modifier
                             .size(cropSize.x, cropSize.y)
                             .offset(cropOffset.x, cropOffset.y)
-                            .border(2.dp, Color.White)
                             .pointerInput(state.crop) {
                                 detectDragGestures(
                                     onDragStart = { offset ->
@@ -371,6 +376,12 @@ private fun EditPartScreen(
                                 )
                             }
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .border(2.dp, Color.White)
+                        ) { }
+
                         Column(
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.SpaceEvenly,
@@ -386,7 +397,23 @@ private fun EditPartScreen(
                             VerticalDivider(color = Color.White)
                             VerticalDivider(color = Color.White)
                         }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .aspectRatio(deviceRatio?.takeIf { it > 0 } ?: 1f)
+                                .border(2.dp, Color.Green.copy(0.5f))
+                                .align(Alignment.Center),
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(1f / (deviceRatio?.takeIf { it > 0 } ?: 1f))
+                                .border(2.dp, Color.Green.copy(0.5f))
+                                .align(Alignment.Center),
+                        )
                     }
+
                 }
 
                 Column(
@@ -686,9 +713,11 @@ private fun EditPartScreen(
 
 @Preview
 @Composable
-private fun EditPartScreenPreview() {
-    val edit = EditingClip.samples.first()
-    val part = EditingClip.samples.first().parts[1]
+private fun EditPartScreenPreview(
+    edit: EditingClip = EditingClip.samples.first(),
+    partIndex: Int = 1
+) {
+    val part = edit.parts[partIndex]
     ClipKeepTheme() {
         EditPartScreen(
             state = EditPartUiState(
@@ -696,8 +725,20 @@ private fun EditPartScreenPreview() {
                 edit = edit,
                 part = part,
                 startMs = part.startMs,
-                endMs = part.finishMs
+                endMs = part.finishMs,
+                crop = Crop(
+                    x = 0f,
+                    y = 0f,
+                    width = edit.width.toFloat(),
+                    height = edit.height.toFloat(),
+                )
             )
         )
     }
+}
+
+@Preview
+@Composable
+private fun EditPartScreenPreview2() {
+    EditPartScreenPreview(edit = EditingClip.samples[1], partIndex = 0)
 }
