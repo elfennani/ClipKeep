@@ -76,7 +76,7 @@ class RenderService : Service() {
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         val editId = intent.extras?.getLong("edit_id") ?: throw Exception("Edit Id not found!")
         val notification = NotificationCompat.Builder(this, "RENDER_NOTIFICATION")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_status_bar)
             .setContentTitle("Rendering")
             .setContentText("Preparing")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -121,7 +121,7 @@ class RenderService : Service() {
                 val uri = renderPart(edit, part) {
                     Log.d("RenderService", "Progress: $it")
                     val notification = NotificationCompat.Builder(this, "RENDER_NOTIFICATION")
-                        .setSmallIcon(R.drawable.ic_launcher_foreground)
+                        .setSmallIcon(R.drawable.ic_status_bar)
                         .setContentTitle("Rendering Clip ${index + 1} / ${edit.parts.size}")
                         .setContentText("${(it * 100).toInt()}%")
                         .setPriority(NotificationCompat.PRIORITY_DEFAULT)

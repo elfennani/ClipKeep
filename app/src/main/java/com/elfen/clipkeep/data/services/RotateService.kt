@@ -76,7 +76,7 @@ class RotateService : Service() {
         val rotation = intent.extras?.getFloat(ROTATION_KEY)!!
 
         val notification = NotificationCompat.Builder(this, "RENDER_NOTIFICATION")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_status_bar)
             .setContentTitle("Rendering Rotated Video")
             .setContentText("Preparing")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -107,7 +107,7 @@ class RotateService : Service() {
                 notificationManager.notify(
                     Random.nextInt(0, Int.MAX_VALUE),
                     NotificationCompat.Builder(this@RotateService, "RENDER_NOTIFICATION")
-                        .setSmallIcon(R.drawable.ic_launcher_foreground)
+                        .setSmallIcon(R.drawable.ic_status_bar)
                         .setContentTitle("Rendering Rotated Video")
                         .setContentText("Done")
                         .build()
@@ -127,7 +127,7 @@ class RotateService : Service() {
 
         val output = renderRotation(clip, rotation) {
             val notification = NotificationCompat.Builder(this, "RENDER_NOTIFICATION")
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setSmallIcon(R.drawable.ic_status_bar)
                 .setContentTitle("Rendering Rotated Video")
                 .setContentText("${(it * 100).toInt()}%")
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)

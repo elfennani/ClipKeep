@@ -28,6 +28,7 @@
                 android:name=".data.services.RotateService"
                 android:foregroundServiceType="mediaProcessing"
                 android:exported="false" />
+
         <activity
                 android:name=".MainActivity"
                 android:exported="true"
