@@ -28,7 +28,9 @@ data class ClipEntity(
     val size: Long,
     val createdAt: Long = Clock.System.now().toEpochMilliseconds(),
     @ColumnInfo(defaultValue = "0")
-    val rotation: Float
+    val rotation: Float,
+    @ColumnInfo(defaultValue = "0")
+    val hasRotatedThumbnail: Boolean = false
 )
 
 @OptIn(ExperimentalTime::class)

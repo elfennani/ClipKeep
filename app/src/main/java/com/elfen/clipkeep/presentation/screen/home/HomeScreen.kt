@@ -171,22 +171,11 @@ private fun HomeScreen(
             }
         } else {
             LazyVerticalStaggeredGrid(
-                modifier = Modifier
-                    .scale(1.01f, 1.005f)
-                    .border(
-                        width = 8.dp,
-                        color = MaterialTheme.colorScheme.background,
-                        shape = AbsoluteSmoothCornerShape(
-                            cornerRadiusTL = 40.dp,
-                            cornerRadiusBL = 40.dp,
-                            cornerRadiusBR = 40.dp,
-                            cornerRadiusTR = 40.dp
-                        )
-                    ),
+                modifier = Modifier,
                 columns = StaggeredGridCells.Fixed(2),
-                verticalItemSpacing = 8.dp,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(8.dp) + innerPadding
+                verticalItemSpacing = 4.dp,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                contentPadding = PaddingValues(0.dp) + innerPadding
             ) {
                 items(
                     items = state.clips,
@@ -194,14 +183,6 @@ private fun HomeScreen(
                 ) { clip ->
                     ClipCard(
                         modifier = Modifier
-                            .clip(
-                                AbsoluteSmoothCornerShape(
-                                    cornerRadiusTL = 8.dp,
-                                    cornerRadiusBL = 8.dp,
-                                    cornerRadiusBR = 8.dp,
-                                    cornerRadiusTR = 8.dp
-                                )
-                            )
                             .combinedClickable(
                                 onLongClick = { selectedClipId = clip.id },
                                 onClick = { onClickClip(clip) }

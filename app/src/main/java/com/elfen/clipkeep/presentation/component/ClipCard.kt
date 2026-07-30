@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -42,6 +43,7 @@ import kotlinx.datetime.format.MonthNames
 import kotlinx.datetime.format.Padding
 import kotlinx.datetime.format.char
 import java.time.LocalDateTime
+import kotlin.math.abs
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
@@ -98,15 +100,12 @@ fun Instant.timeAgo(now: Instant = Clock.System.now()): String {
 @Composable
 fun ClipCard(modifier: Modifier = Modifier, clip: Clip) {
     Box(
-        modifier = modifier.clip(
-            AbsoluteSmoothCornerShape(
-                cornerRadiusTL = 8.dp,
-                cornerRadiusBL = 8.dp,
-                cornerRadiusBR = 8.dp,
-                cornerRadiusTR = 8.dp
-            )
-        )
+        modifier = modifier
     ) {
+        val isRotated = abs(clip.rotation % 180f) != 0f
+        val aspectRatio =
+            if (isRotated) clip.height.toFloat() / clip.width else clip.width.toFloat() / clip.height
+
         AsyncImage(
             model = clip.thumbnail,
             contentDescription = clip.title,
@@ -114,7 +113,7 @@ fun ClipCard(modifier: Modifier = Modifier, clip: Clip) {
             modifier = Modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surfaceVariant)
-                .aspectRatio((clip.width.toFloat() / clip.height).coerceAtMost(16f / 9))
+                .aspectRatio(aspectRatio)
         )
 
         if (clip.title != null)

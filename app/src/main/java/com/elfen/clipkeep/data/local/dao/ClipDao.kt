@@ -30,9 +30,13 @@ interface ClipDao {
     @Query("UPDATE clip SET uri=:uri WHERE id=:id")
     suspend fun updateFile(id: Long, uri: String)
 
+    @Query("UPDATE clip SET thumbnail_uri=:thumbnail, hasRotatedThumbnail=:hasRotated WHERE id=:id")
+    suspend fun updateThumbnail(id: Long, thumbnail: String, hasRotated: Boolean = false)
+
     @Transaction
-    suspend fun updateFileAndRotation(id: Long, uri: String, rotation: Float) {
+    suspend fun updateFileAndRotation(id: Long, uri: String, thumbnail: String, rotation: Float) {
         updateFile(id, uri)
+        updateThumbnail(id, thumbnail, true)
         updateRotation(id, rotation)
     }
 }

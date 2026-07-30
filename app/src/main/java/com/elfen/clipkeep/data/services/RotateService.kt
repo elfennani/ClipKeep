@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalUuidApi::class)
+
 package com.elfen.clipkeep.data.services
 
 import android.annotation.SuppressLint
@@ -47,9 +49,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.internal.notify
 import java.io.File
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
+import android.graphics.Matrix
+import kotlinx.coroutines.withContext
+import java.io.FileOutputStream
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.math.abs
 import kotlin.random.Random
 import kotlin.random.nextInt
 import kotlin.time.Duration.Companion.milliseconds
@@ -121,7 +129,7 @@ class RotateService : Service() {
         return super.onStartCommand(intent, flags, startId)
     }
 
-    @androidx.annotation.OptIn(UnstableApi::class)
+    @androidx.annotation.OptIn(UnstableApi::class, ExperimentalUuidApi::class)
     private suspend fun rotate(id: Long, rotation: Float) {
         val clip = clipRepository.getClips().first().first { it.id == id }
 
@@ -139,9 +147,44 @@ class RotateService : Service() {
             notificationManager.notify(100, notification)
         }
 
+        val thumbnail = clip.thumbnail.toFile()
+
+        val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(thumbnail))
+
+        val matrix = Matrix().apply {
+            postRotate(abs(rotation % 180f))
+        }
+
+        val rotatedBitmap = Bitmap.createBitmap(
+            bitmap,
+            0,
+            0,
+            bitmap.width,
+            bitmap.height,
+            matrix,
+            true
+        )
+
+        val thumbnailFile = File(
+            filesDir,
+            "${Uuid.generateV4()}.png"
+        )
+
+        withContext(Dispatchers.IO) {
+            FileOutputStream(thumbnailFile).use {
+                rotatedBitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+            }
+        }
+
         val input = clip.uri.toFile()
-        clipDao.updateFileAndRotation(id, output.toString(), rotation)
+        clipDao.updateFileAndRotation(
+            id,
+            output.toString(),
+            thumbnailFile.toUri().toString(),
+            rotation
+        )
         input.delete()
+        clip.thumbnail.toFile().delete()
     }
 
     @OptIn(ExperimentalUuidApi::class)

@@ -49,6 +49,7 @@ import java.io.File
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -71,6 +72,9 @@ class RenderService : Service() {
     private val serviceScope = CoroutineScope(
         SupervisorJob() + Dispatchers.Main
     )
+
+    private val delayBetweenNotifications = 1500L
+    private var lastNotify = 0L
 
     @SuppressLint("InlinedApi")
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
@@ -99,6 +103,7 @@ class RenderService : Service() {
 
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.notify(100, notification)
+        lastNotify = Clock.System.now().toEpochMilliseconds()
 
         serviceScope.launch {
             try {
@@ -119,12 +124,17 @@ class RenderService : Service() {
             .filter { it.enabled }
             .forEachIndexed { index, part ->
                 val uri = renderPart(edit, part) {
+                    val now = Clock.System.now().toEpochMilliseconds()
+                    if (now - lastNotify <= delayBetweenNotifications)
+                        return@renderPart
+
+                    lastNotify = now
+
                     Log.d("RenderService", "Progress: $it")
                     val notification = NotificationCompat.Builder(this, "RENDER_NOTIFICATION")
                         .setSmallIcon(R.drawable.ic_status_bar)
                         .setContentTitle("Rendering Clip ${index + 1} / ${edit.parts.size}")
                         .setContentText("${(it * 100).toInt()}%")
-                        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                         .setProgress(100, (it * 100).toInt(), false)
                         .setSilent(true)
                         .build()
