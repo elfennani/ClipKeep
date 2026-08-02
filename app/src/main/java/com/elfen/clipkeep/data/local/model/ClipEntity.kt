@@ -5,7 +5,6 @@ import androidx.room3.ColumnInfo
 import androidx.room3.Entity
 import androidx.room3.PrimaryKey
 import com.elfen.clipkeep.domain.model.Clip
-import kotlinx.coroutines.flow.Flow
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -32,7 +31,9 @@ data class ClipEntity(
     @ColumnInfo(defaultValue = "0")
     val hasRotatedThumbnail: Boolean = false,
     @ColumnInfo(defaultValue = "0")
-    val random: Int = 0
+    val random: Int = 0,
+    @ColumnInfo(defaultValue = "0", name = "start_moment_ms")
+    val startMomentMs: Long = 0
 )
 
 @OptIn(ExperimentalTime::class)
@@ -47,5 +48,6 @@ fun ClipEntity.asAppModel() = Clip(
     duration = durationMs,
     size = size,
     rotation = rotation,
+    startMoment = startMomentMs,
     createdAt = Instant.fromEpochMilliseconds(createdAt)
 )

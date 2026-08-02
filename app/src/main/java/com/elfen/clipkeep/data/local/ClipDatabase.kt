@@ -15,12 +15,13 @@ import com.elfen.clipkeep.data.local.model.EditingClipPartEntity
         EditingClipEntity::class,
         EditingClipPartEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(2, 3),
         AutoMigration(3, 4),
-        AutoMigration(4, 5)
+        AutoMigration(4, 5),
+        AutoMigration(5, 6)
     ],
 )
 abstract class ClipDatabase : RoomDatabase() {

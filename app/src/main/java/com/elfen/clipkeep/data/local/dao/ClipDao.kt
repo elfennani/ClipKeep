@@ -36,6 +36,9 @@ interface ClipDao {
     @Query("UPDATE clip SET random=ABS(RANDOM())")
     suspend fun randomizeClips()
 
+    @Query("UPDATE clip SET start_moment_ms=:momentMs WHERE id=:clipId")
+    suspend fun updateStartMoment(clipId: Long, momentMs: Long)
+
     @Transaction
     suspend fun updateFileAndRotation(id: Long, uri: String, thumbnail: String, rotation: Float) {
         updateFile(id, uri)

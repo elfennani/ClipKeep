@@ -3,6 +3,7 @@ package com.elfen.clipkeep.presentation.screen.scroller
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.elfen.clipkeep.data.local.DataStorePreferences
+import com.elfen.clipkeep.domain.model.Clip
 import com.elfen.clipkeep.domain.model.Settings
 import com.elfen.clipkeep.domain.model.next
 import com.elfen.clipkeep.domain.model.settings
@@ -41,6 +42,12 @@ class ScrollerViewModel @AssistedInject constructor(
     fun toggleFullscreen() {
         viewModelScope.launch {
             Settings.setFullscreen(dataStore, state.value.settings.scalingMode.next())
+        }
+    }
+
+    fun setClipStartMoment(clip: Clip, moment: Long) {
+        viewModelScope.launch {
+            clipRepository.setClipStartMoment(clip.id, moment)
         }
     }
 

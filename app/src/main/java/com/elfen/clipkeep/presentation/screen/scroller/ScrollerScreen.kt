@@ -18,6 +18,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.TargetedFlingBehavior
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,13 +37,22 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.sharp.Delete
+import androidx.compose.material.icons.sharp.MoreVert
+import androidx.compose.material.icons.sharp.Start
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.MenuItemColors
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -108,6 +118,7 @@ fun ScrollerScreen(
         clipId = route.clipId,
         onRotate = viewModel::rotate,
         onToggleFullscreen = viewModel::toggleFullscreen,
+        onSetClipStartMoment = viewModel::setClipStartMoment,
         onBack = onBack
     )
 }
@@ -121,6 +132,7 @@ private fun ScrollerScreen(
     clipId: Long? = null,
     onRotate: (id: Long, rotation: Float) -> Unit = { _, _ -> },
     onToggleFullscreen: () -> Unit = {},
+    onSetClipStartMoment: (clip: Clip, moment: Long) -> Unit = { _, _ -> },
     onBack: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -177,7 +189,7 @@ private fun ScrollerScreen(
                     if (player == null) return@DisposableEffect onDispose { }
                     player.setMediaItem(MediaItem.fromUri(clip.uri))
                     player.prepare()
-
+                    player.seekTo(clip.startMoment)
 
                     onDispose { player.release() }
                 }
@@ -242,7 +254,6 @@ private fun ScrollerScreen(
                             },
                         player = player,
                         contentScale = if (state.settings.scalingMode != VideoScalingMode.SCALE_TO_FIT && clipAspectRatio < 4f / 3)
-//                        contentScale = if (state.settings.scalingMode == VideoScalingMode.SCALE_TO_FILL)
                             ContentScale.Crop
                         else
                             ContentScale.Fit,
@@ -250,6 +261,45 @@ private fun ScrollerScreen(
                         showControls = false,
                         shutter = {}
                     )
+
+                    var expanded by remember { mutableStateOf(false) }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .padding(WindowInsets.statusBars.asPaddingValues()),
+                    ) {
+                        IconButton(
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = Color.Black.copy(0.25f),
+                                contentColor = Color.White
+                            ),
+                            onClick = { expanded = !expanded }
+                        ) {
+                            Icon(Icons.Sharp.MoreVert, null)
+                        }
+                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                            DropdownMenuItem(
+                                text = { Text("This moment as start") },
+                                onClick = {
+                                    onSetClipStartMoment(
+                                        clip,
+                                        player?.currentPosition ?: 0
+                                    )
+                                },
+                                leadingIcon = { Icon(Icons.Sharp.Start, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Delete") },
+                                onClick = { },
+                                leadingIcon = { Icon(Icons.Sharp.Delete, null) },
+                                colors = MenuDefaults.itemColors(
+                                    textColor = MaterialTheme.colorScheme.error,
+                                    leadingIconColor = MaterialTheme.colorScheme.error
+                                )
+                            )
+                        }
+                    }
 
                     AnimatedVisibility(
                         visible = !hideControls,

@@ -55,4 +55,8 @@ class ClipRepositoryImpl @Inject constructor(
     override suspend fun randomizeClips() {
         clipDao.randomizeClips()
     }
+
+    override suspend fun setClipStartMoment(id: Long, moment: Long) {
+        clipDao.updateStartMoment(id, moment)
+    }
 }

@@ -1,7 +1,6 @@
 package com.elfen.clipkeep.domain.model
 
 import android.net.Uri
-import kotlinx.coroutines.flow.Flow
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -18,7 +17,8 @@ data class Clip(
     val duration: Long,
     val createdAt: Instant,
     val size: Long,
-    val rotation: Float
+    val rotation: Float,
+    val startMoment: Long = 0
 ) {
     companion object {
         val samples: List<Clip> = listOf(
@@ -31,11 +31,11 @@ data class Clip(
                 thumbnail = Uri.EMPTY,
                 uri = Uri.EMPTY,
                 duration = 10_000,
-                size = 1_000_000,
-                rotation = 0f,
                 createdAt = Instant.fromEpochMilliseconds(
                     Clock.System.now().toEpochMilliseconds() - 10_000
-                )
+                ),
+                size = 1_000_000,
+                rotation = 0f,
             ),
             Clip(
                 id = 2,
@@ -46,11 +46,11 @@ data class Clip(
                 thumbnail = Uri.EMPTY,
                 uri = Uri.EMPTY,
                 duration = 7_500,
-                size = 1_000_000,
-                rotation = 0f,
                 createdAt = Instant.fromEpochMilliseconds(
                     Clock.System.now().toEpochMilliseconds() - 97_929_000
-                )
+                ),
+                size = 1_000_000,
+                rotation = 0f,
             ),
             Clip(
                 id = 3,
@@ -61,11 +61,11 @@ data class Clip(
                 thumbnail = Uri.EMPTY,
                 uri = Uri.EMPTY,
                 duration = 129_800,
-                size = 1_000_000,
-                rotation = 0f,
                 createdAt = Instant.fromEpochMilliseconds(
                     Clock.System.now().toEpochMilliseconds() - 48_960_000
-                )
+                ),
+                size = 1_000_000,
+                rotation = 0f,
             )
         )
     }

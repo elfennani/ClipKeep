@@ -12,4 +12,6 @@ interface ClipRepository {
 
     suspend fun toggleRandomization()
     suspend fun randomizeClips()
+
+    suspend fun setClipStartMoment(id: Long, moment: Long)
 }
