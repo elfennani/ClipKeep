@@ -30,7 +30,9 @@ data class ClipEntity(
     @ColumnInfo(defaultValue = "0")
     val rotation: Float,
     @ColumnInfo(defaultValue = "0")
-    val hasRotatedThumbnail: Boolean = false
+    val hasRotatedThumbnail: Boolean = false,
+    @ColumnInfo(defaultValue = "0")
+    val random: Int = 0
 )
 
 @OptIn(ExperimentalTime::class)

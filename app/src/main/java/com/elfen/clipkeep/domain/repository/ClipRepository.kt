@@ -9,4 +9,7 @@ interface ClipRepository {
     suspend fun renameClip(id: Long, name: String?)
 
     suspend fun rotateClip(id: Long, rotation: Float = 90f)
+
+    suspend fun toggleRandomization()
+    suspend fun randomizeClips()
 }

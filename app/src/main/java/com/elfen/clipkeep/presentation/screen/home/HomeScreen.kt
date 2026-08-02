@@ -4,22 +4,26 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -32,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -43,6 +48,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
@@ -62,6 +68,7 @@ import com.elfen.clipkeep.presentation.screen.scroller.ScrollerRoute
 import com.elfen.clipkeep.presentation.theme.ClipKeepTheme
 import com.elfen.clipkeep.utils.AbsoluteSmoothCornerShape
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 @Composable
 fun HomeScreen(
@@ -78,17 +85,21 @@ fun HomeScreen(
             onNavigate(ScrollerRoute(it.id))
         },
         onCreateEdit = viewModel::createEdit,
-        onDeleteClip = viewModel::deleteClip
+        onDeleteClip = viewModel::deleteClip,
+        onRandomizeClips = viewModel::randomizeClips,
+        onToggleRandomization = viewModel::toggleRandomization
     )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HomeScreen(
-    state: HomeUiState = HomeUiState(),
+    state: HomeUiState = HomeUiState(listState = rememberLazyStaggeredGridState()),
     onNavigateToClipper: (id: Long) -> Unit = {},
     onClickClip: (clip: Clip) -> Unit = {},
     onCreateEdit: (uri: Uri, onCreated: (EditingClip) -> Unit) -> Unit = { _, _ -> },
+    onRandomizeClips: () -> Unit = {},
+    onToggleRandomization: () -> Unit = {},
     onDeleteClip: (id: Long) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -140,12 +151,37 @@ private fun HomeScreen(
 
     Scaffold(
         floatingActionButton = {
-            ExtendedFloatingActionButton(onClick = {
-                launcher.launch(arrayOf("video/*"))
-            }) {
-                Icon(painterResource(R.drawable.sharp_video_camera_back_add_24), null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Add")
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.End
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    AnimatedVisibility(visible = state.settings.isRandomized) {
+                        SmallFloatingActionButton(onClick = { onRandomizeClips() }) {
+                            Icon(
+                                painterResource(R.drawable.outline_screen_rotation_alt_24),
+                                null,
+                            )
+                        }
+                    }
+                    SmallFloatingActionButton(onClick = { onToggleRandomization() }) {
+                        Icon(
+                            painterResource(R.drawable.outline_sort_by_alpha_24),
+                            null,
+                            modifier = Modifier.alpha(if (state.settings.isRandomized) 0.5f else 1f)
+                        )
+                    }
+                }
+                ExtendedFloatingActionButton(onClick = {
+                    launcher.launch(arrayOf("video/*"))
+                }) {
+                    Icon(painterResource(R.drawable.sharp_video_camera_back_add_24), null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Import")
+                }
             }
         }
     ) { innerPadding ->
@@ -172,14 +208,38 @@ private fun HomeScreen(
         } else {
             LazyVerticalStaggeredGrid(
                 modifier = Modifier,
-                columns = StaggeredGridCells.Fixed(2),
+                state = state.listState,
+                columns = StaggeredGridCells.Fixed(3),
                 verticalItemSpacing = 4.dp,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
-                contentPadding = PaddingValues(0.dp) + innerPadding
+                contentPadding = PaddingValues(0.dp) + innerPadding,
             ) {
+                item(span = StaggeredGridItemSpan.FullLine) { }
                 items(
                     items = state.clips,
-//                    span = { clip -> if ((clip.width.toFloat() / clip.height) >= 1f) StaggeredGridItemSpan.FullLine else StaggeredGridItemSpan.SingleLane }
+                    key = { clip -> clip.id },
+                    span = { clip ->
+                        val isRotated = abs(clip.rotation % 180f) != 0f
+                        val aspectRatio =
+                            if (isRotated) clip.height.toFloat() / clip.width else clip.width.toFloat() / clip.height
+
+                        if ((aspectRatio) >= 1f) {
+                            StaggeredGridItemSpan.FullLine
+                        } else {
+                            StaggeredGridItemSpan.SingleLane
+                        }
+                    },
+                    contentType = { clip ->
+                        val isRotated = abs(clip.rotation % 180f) != 0f
+                        val aspectRatio =
+                            if (isRotated) clip.height.toFloat() / clip.width else clip.width.toFloat() / clip.height
+
+                        if ((aspectRatio) >= 1f) {
+                            "FullLine"
+                        } else {
+                            "SingleLane"
+                        }
+                    }
                 ) { clip ->
                     ClipCard(
                         modifier = Modifier
@@ -210,7 +270,8 @@ private fun HomeScreenClipsPreview() {
         HomeScreen(
             state = HomeUiState(
                 isLoading = false,
-                clips = Clip.samples
+                clips = Clip.samples,
+                listState = rememberLazyStaggeredGridState()
             )
         )
     }
@@ -223,7 +284,8 @@ private fun HomeScreenEmptyPreview() {
         HomeScreen(
             state = HomeUiState(
                 isLoading = false,
-                clips = emptyList()
+                clips = emptyList(),
+                listState = rememberLazyStaggeredGridState()
             )
         )
     }
